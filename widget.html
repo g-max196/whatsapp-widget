@@ -224,8 +224,8 @@ async function loadContactData() {
     // Get contact name + phone based on module type
     if (currentModule === 'Deals') {
       contactName = record.Deal_Name || record.Account_Name?.name || 'עסקה';
-      if (!currentPhone && record.Contact_Name) {
-        const c = await ZOHO.CRM.API.getRecord({ Entity: 'Contacts', RecordID: record.Contact_Name.id });
+      if (!currentPhone && record.Customer_link) {
+        const c = await ZOHO.CRM.API.getRecord({ Entity: 'Contacts', RecordID: record.Customer_link.id });
         if (c.data?.[0]) {
           currentPhone = c.data[0].Mobile || c.data[0].Phone;
           contactName = `${c.data[0].First_Name || ''} ${c.data[0].Last_Name || ''}`.trim() || contactName;
@@ -233,8 +233,8 @@ async function loadContactData() {
       }
     } else if (currentModule === 'Cases') {
       contactName = record.Subject || 'קריאת שירות';
-      if (record.Contact_Name) {
-        const c = await ZOHO.CRM.API.getRecord({ Entity: 'Contacts', RecordID: record.Contact_Name.id });
+      if (record.Customer_link) {
+        const c = await ZOHO.CRM.API.getRecord({ Entity: 'Contacts', RecordID: record.Customer_link.id });
         if (c.data?.[0]) {
           currentPhone = c.data[0].Mobile || c.data[0].Phone;
           contactName = `${c.data[0].First_Name || ''} ${c.data[0].Last_Name || ''}`.trim() || contactName;
