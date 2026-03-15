@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Incoming Dashboard</title>
+  <script src="https://live.zwidgets.com/js-sdk/1.2/ZohoEmbededAppSDK.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      background: #fff;
+      direction: rtl;
+      padding: 16px;
+      color: #333;
+    }
+
+    /* Header */
+    .dash-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #25d366;
+    }
+    .dash-header .icon {
+      width: 36px; height: 36px;
+      background: #25d366;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; color: white; flex-shrink: 0;
+    }
+    .dash-title {
+      font-size: 16px; font-weight: 700; color: #075e54;
+    }
+    .dash-count {
+      margin-right: auto;
+      background: #25d366;
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 2px 10px;
+      border-radius: 12px;
+    }
+    .dash-date {
+      font-size: 12px;
+      color: #999;
+    }
+
+    /* Messages list */
+    .msg-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .msg-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: #f8f9fa;
+      border-right: 3px solid #25d366;
+      transition: background 0.15s;
+    }
+    .msg-item:hover { background: #f0f5f0; }
+    .msg-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: #e0e0e0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; color: #666;
+      flex-shrink: 0;
+    }
+    .msg-avatar.has-contact { background: #25d366; color: white; }
+    .msg-body { flex: 1; min-width: 0; }
+    .msg-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 3px;
+    }
+    .msg-sender {
+      font-size: 13px;
+      font-weight: 600;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .msg-sender a {
+      color: #075e54;
+      text-decoration: none;
+    }
+    .msg-sender a:hover { text-decoration: underline; }
+    .msg-time {
+      font-size: 11px;
+      color: #999;
+      margin-right: auto;
+      white-space: nowrap;
+    }
+    .msg-text {
+      font-size: 13px;
+      color: #555;
+      line-height: 1.4;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .msg-phone {
+      font-size: 11px;
+      color: #999;
+      direction: ltr;
+      text-align: right;
+      margin-top: 2px;
+    }
+
+    /* Badge */
+    .msg-type-badge {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 8px;
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    /* Empty / Loading */
+    .state-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      color: #999;
+      gap: 8px;
+    }
+    .state-icon { font-size: 40px; }
+    .state-title { font-size: 14px; font-weight: 600; }
+    .spinner {
+      width: 30px; height: 30px;
+      border: 3px solid #ddd;
+      border-top-color: #25d366;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Refresh button */
+    .btn-refresh {
+      background: none; border: none;
+      cursor: pointer; font-size: 18px;
+      color: #075e54;
+      padding: 4px;
+      border-radius: 4px;
+      transition: background 0.15s;
+    }
+    .btn-refresh:hover { background: #e8f5e9; }
+
+    /* Scrollbar */
+    .msg-list::-webkit-scrollbar { width: 4px; }
+    .msg-list::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+  <div class="dash-header">
+    <div class="icon">💬</div>
+    <div class="dash-title">הודעות WhatsApp נכנסות</div>
+    <div class="dash-date" id="dashDate"></div>
+    <div class="dash-count" id="dashCount" style="display:none">0</div>
+    <button class="btn-refresh" onclick="loadMessages()" title="רענן">🔄</button>
+  </div>
+
+  <div id="msgList" class="msg-list">
+    <div class="state-box">
+      <div class="spinner"></div>
+      <div class="state-title">טוען הודעות...</div>
+    </div>
+  </div>
+
+<script>
+// =============================================================
+// CONFIGURATION
+// =============================================================
+const CONFIG = {
+  N8N_BASE_URL: 'https://n8n.srv1254786.hstgr.cloud',
+  N8N_DASHBOARD_PATH: '/webhook/whatsapp-dashboard',
+  REFRESH_INTERVAL: 30000, // 30 seconds
+  ZOHO_ORG_URL: 'https://crm.zoho.com', // Base URL for record links
+};
+
+let refreshTimer = null;
+
+// =============================================================
+// INIT
+// =============================================================
+ZOHO.embeddedApp.on("PageLoad", function(data) {
+  loadMessages();
+  startAutoRefresh();
+});
+
+ZOHO.embeddedApp.init();
+
+// Show today's date
+document.getElementById('dashDate').textContent = new Date().toLocaleDateString('he-IL', {
+  weekday: 'long', day: 'numeric', month: 'long'
+});
+
+// =============================================================
+// LOAD MESSAGES
+// =============================================================
+async function loadMessages() {
+  const listEl = document.getElementById('msgList');
+
+  try {
+    const res = await fetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_DASHBOARD_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'dashboard' })
+    });
+    const data = await res.json();
+
+    if (data.messages && data.messages.length > 0) {
+      // Update count
+      const countEl = document.getElementById('dashCount');
+      countEl.textContent = data.messages.length;
+      countEl.style.display = 'inline';
+
+      // Render messages
+      listEl.innerHTML = '';
+      data.messages.forEach(msg => {
+        listEl.appendChild(createMessageItem(msg));
+      });
+    } else {
+      listEl.innerHTML = `
+        <div class="state-box">
+          <div class="state-icon">✅</div>
+          <div class="state-title">אין הודעות נכנסות היום</div>
+        </div>`;
+      document.getElementById('dashCount').style.display = 'none';
+    }
+  } catch (err) {
+    console.error('Dashboard load error:', err);
+    listEl.innerHTML = `
+      <div class="state-box">
+        <div class="state-icon">⚠️</div>
+        <div class="state-title">שגיאה בטעינת הודעות</div>
+      </div>`;
+  }
+}
+
+// =============================================================
+// CREATE MESSAGE ITEM
+// =============================================================
+function createMessageItem(msg) {
+  const div = document.createElement('div');
+  div.className = 'msg-item';
+
+  const initial = msg.senderName ? msg.senderName.charAt(0) : '?';
+  const hasContact = msg.contactId ? 'has-contact' : '';
+  const time = new Date(msg.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+
+  // Build sender name - with link if contact exists
+  let senderHtml = '';
+  if (msg.contactId && msg.contactModule) {
+    senderHtml = `<a href="javascript:void(0)" onclick="openRecord('${msg.contactModule}','${msg.contactId}')">${escapeHtml(msg.senderName || msg.phone)}</a>`;
+  } else {
+    senderHtml = escapeHtml(msg.senderName || msg.phone);
+  }
+
+  // Message type badge
+  let typeBadge = '';
+  if (msg.type && msg.type !== 'text') {
+    const typeLabels = {
+      image: '📷 תמונה', video: '🎥 סרטון', audio: '🎵 קולית',
+      document: '📄 מסמך', location: '📍 מיקום', contact: '👤 איש קשר'
+    };
+    typeBadge = `<span class="msg-type-badge">${typeLabels[msg.type] || msg.type}</span>`;
+  }
+
+  div.innerHTML = `
+    <div class="msg-avatar ${hasContact}">${initial}</div>
+    <div class="msg-body">
+      <div class="msg-top">
+        <div class="msg-sender">${senderHtml}</div>
+        ${typeBadge}
+        <div class="msg-time">${time}</div>
+      </div>
+      <div class="msg-text">${escapeHtml(msg.text)}</div>
+      <div class="msg-phone">${msg.phone ? '+' + msg.phone : ''}</div>
+    </div>
+  `;
+
+  return div;
+}
+
+// =============================================================
+// OPEN RECORD IN ZOHO
+// =============================================================
+function openRecord(module, id) {
+  try {
+    ZOHO.CRM.UI.Record.open({ Entity: module, RecordID: id });
+  } catch(e) {
+    // Fallback
+    window.open(`${CONFIG.ZOHO_ORG_URL}/crm/tab/${module}/${id}`, '_blank');
+  }
+}
+
+// =============================================================
+// AUTO REFRESH
+// =============================================================
+function startAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(loadMessages, CONFIG.REFRESH_INTERVAL);
+}
+
+// =============================================================
+// HELPERS
+// =============================================================
+function escapeHtml(t) {
+  if (!t) return '';
+  const d = document.createElement('div');
+  d.textContent = t;
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>
