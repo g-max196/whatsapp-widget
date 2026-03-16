@@ -196,8 +196,8 @@ function createMessageItem(msg) {
   div.id = `msg-${msg.recordId}`;
   const initial = msg.senderName ? msg.senderName.charAt(0) : '?';
   const hasContact = msg.contactId ? 'has-contact' : '';
-  const time = new Date(msg.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-
+const msgDate = new Date(msg.timestamp);
+const time = msgDate.toLocaleDateString('he-IL', { day: 'numeric', month: 'short' }) + ' · ' + msgDate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
   let senderHtml = '';
   if (msg.contactId && msg.contactModule) {
     senderHtml = `<a href="javascript:void(0)" onclick="openRecord('${msg.contactModule}','${msg.contactId}')">${escapeHtml(msg.senderName || msg.phone)}</a>`;
