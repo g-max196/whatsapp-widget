@@ -233,8 +233,8 @@ async function loadContactData() {
       }
     } else if (currentModule === 'Cases') {
       contactName = record.Subject || 'קריאת שירות';
-      if (record.Link_Contact) {
-        const c = await ZOHO.CRM.API.getRecord({ Entity: 'Contacts', RecordID: record.Link_Contact.id });
+      if (record.Customer_link) {
+        const c = await ZOHO.CRM.API.getRecord({ Entity: 'Contacts', RecordID: record.Customer_link.id });
         if (c.data?.[0]) {
           currentPhone = c.data[0].Mobile || c.data[0].Phone;
           contactName = `${c.data[0].First_Name || ''} ${c.data[0].Last_Name || ''}`.trim() || contactName;
