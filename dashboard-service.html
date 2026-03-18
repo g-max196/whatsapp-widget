@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>WhatsApp הודעות שירות</title>
+  <script src="https://live.zwidgets.com/js-sdk/1.2/ZohoEmbededAppSDK.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:#fff;direction:rtl;padding:10px 12px;color:#333;max-width:500px}
+    .dash-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #2196F3}
+    .dash-header .icon{width:26px;height:26px;background:#2196F3;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;color:white;flex-shrink:0}
+    .dash-title{font-size:13px;font-weight:700;color:#333}
+    .dash-count{background:#e74c3c;color:white;font-size:11px;font-weight:600;padding:1px 8px;border-radius:10px}
+    .dash-date{font-size:11px;color:#999;margin-right:auto}
+    .btn-refresh{background:none;border:none;font-size:14px;cursor:pointer;padding:4px}
+    .msg-list{display:flex;flex-direction:column;gap:6px;max-height:380px;overflow-y:auto}
+    .msg-item{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:8px;background:#f8f9fa;border:1px solid #eee;transition:background 0.15s}
+    .msg-item:hover{background:#f0f0f0}
+    .msg-avatar{width:32px;height:32px;border-radius:50%;background:#2196F3;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:white;flex-shrink:0}
+    .msg-body{flex:1;min-width:0}
+    .msg-sender{font-size:12px;font-weight:600;color:#333;display:flex;align-items:center;gap:6px}
+    .msg-sender a{color:#2196F3;text-decoration:none;font-weight:700}
+    .msg-sender a:hover{text-decoration:underline}
+    .msg-text{font-size:12px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px;margin-top:2px}
+    .msg-time{font-size:10px;color:#aaa;margin-top:2px}
+    .btn-read{width:24px;height:24px;border-radius:50%;border:1.5px solid #ccc;background:white;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;color:#999;flex-shrink:0;transition:all 0.15s}
+    .btn-read:hover{background:#2196F3;color:white;border-color:#2196F3}
+    .btn-read.done{background:#2196F3;color:white;border-color:#2196F3;pointer-events:none}
+    .state-box{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 16px;color:#999;gap:6px}
+    .state-icon{font-size:32px}
+    .state-title{font-size:13px;font-weight:600}
+    .spinner{width:24px;height:24px;border:2px solid #ddd;border-top-color:#2196F3;border-radius:50%;animation:spin 0.8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .msg-list::-webkit-scrollbar{width:3px}
+    .msg-list::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
+  </style>
+</head>
+<body>
+  <div class="dash-header">
+    <div class="icon">🔧</div>
+    <div class="dash-title">הודעות שירות</div>
+    <div class="dash-count" id="dashCount" style="display:none">0</div>
+    <div class="dash-date" id="dashDate"></div>
+    <button class="btn-refresh" onclick="loadMessages()" title="רענן">🔄</button>
+  </div>
+  <div id="msgList" class="msg-list">
+    <div class="state-box"><div class="spinner"></div><div class="state-title">טוען...</div></div>
+  </div>
+<script>
+const CONFIG = {
+  N8N_BASE_URL: 'https://n8n.srv1254786.hstgr.cloud',
+  N8N_DASHBOARD_PATH: '/webhook/whatsapp-dashboard',
+  N8N_MARK_READ_PATH: '/webhook/whatsapp-mark-read',
+  CATEGORY: 'service',
+  REFRESH_INTERVAL: 30000
+};
+
+let refreshTimer = null;
+
+async function init() {
+  try { await ZOHO.embeddedApp.init(); } catch(e) {}
+  document.getElementById('dashDate').textContent = new Date().toLocaleDateString('he-IL');
+  loadMessages();
+  refreshTimer = setInterval(loadMessages, CONFIG.REFRESH_INTERVAL);
+}
+
+async function loadMessages() {
+  const list = document.getElementById('msgList');
+  try {
+    const url = CONFIG.N8N_BASE_URL + CONFIG.N8N_DASHBOARD_PATH + '?category=' + CONFIG.CATEGORY;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    const countEl = document.getElementById('dashCount');
+    countEl.textContent = data.count || 0;
+    countEl.style.display = (data.count > 0) ? 'inline-block' : 'none';
+
+    if (data.messages && data.messages.length > 0) {
+      list.innerHTML = '';
+      data.messages.forEach(msg => {
+        const div = document.createElement('div');
+        div.className = 'msg-item';
+        div.id = 'msg-' + msg.id;
+        const initial = (msg.sender || '?').charAt(0).toUpperCase();
+        const time = msg.time ? new Date(msg.time).toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'}) : '';
+
+        let linkHtml = '';
+        if (msg.contactId) {
+          linkHtml = '<a href="javascript:void(0)" onclick="openRecord(\x27Contacts\x27,\x27' + msg.contactId + '\x27)">' + (msg.contactName || msg.sender) + '</a>';
+        } else if (msg.leadId) {
+          linkHtml = '<a href="javascript:void(0)" onclick="openRecord(\x27Leads\x27,\x27' + msg.leadId + '\x27)">' + (msg.leadName || msg.sender) + '</a>';
+        } else {
+          linkHtml = msg.sender || msg.phone;
+        }
+
+        div.innerHTML =
+          '<div class="msg-avatar">' + initial + '</div>' +
+          '<div class="msg-body">' +
+            '<div class="msg-sender">' + linkHtml + '</div>' +
+            '<div class="msg-text">' + escapeHtml(msg.text || '') + '</div>' +
+            '<div class="msg-time">' + time + ' · ' + (msg.phone || '') + '</div>' +
+          '</div>' +
+          '<button class="btn-read" onclick="markRead(\x27' + msg.id + '\x27, this)" title="סמן כנקראה">✓</button>';
+        list.appendChild(div);
+      });
+    } else {
+      list.innerHTML = '<div class="state-box"><div class="state-icon">✅</div><div class="state-title">אין הודעות חדשות</div></div>';
+    }
+  } catch(err) {
+    console.error('Dashboard error:', err);
+    list.innerHTML = '<div class="state-box"><div class="state-icon">⚠️</div><div class="state-title">שגיאה בטעינה</div></div>';
+  }
+}
+
+async function markRead(messageId, btn) {
+  btn.classList.add('done');
+  btn.textContent = '✓';
+  try {
+    await fetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_MARK_READ_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageId })
+    });
+    setTimeout(() => {
+      const el = document.getElementById('msg-' + messageId);
+      if (el) el.style.display = 'none';
+      const countEl = document.getElementById('dashCount');
+      const current = parseInt(countEl.textContent) || 0;
+      countEl.textContent = Math.max(0, current - 1);
+      if (current - 1 <= 0) countEl.style.display = 'none';
+    }, 500);
+  } catch(err) {
+    console.error('Mark read error:', err);
+  }
+}
+
+function openRecord(module, id) {
+  try {
+    ZOHO.CRM.UI.Record.open({ Entity: module, RecordID: id });
+  } catch(e) {
+    window.open('https://crm.zoho.com/crm/tab/' + module + '/' + id, '_blank');
+  }
+}
+
+function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+init();
+</script>
+</body>
+</html>
