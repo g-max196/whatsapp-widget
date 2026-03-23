@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Chat</title>
+  <script src="https://live.zwidgets.com/js-sdk/1.2/ZohoEmbededAppSDK.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0a6859;
+      --primary-light: #0d8a76;
+      --primary-dark: #064d43;
+      --accent: #22c55e;
+      --accent-glow: rgba(34,197,94,0.25);
+      --bubble-out: #d9fdd3;
+      --bubble-out-border: #c5ecc0;
+      --bubble-in: #ffffff;
+      --bubble-in-border: #e8e8e8;
+      --bg-chat: #eae6df;
+      --bg-pattern: rgba(0,0,0,0.02);
+      --text-primary: #1a1a2e;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --surface: #ffffff;
+      --surface-hover: #f1f5f9;
+      --glass: rgba(255,255,255,0.72);
+      --glass-border: rgba(255,255,255,0.3);
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+      --shadow-lg: 0 8px 30px rgba(0,0,0,0.12);
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-full: 999px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Rubik', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-chat);
+      height: 100vh; width: 100%;
+      display: flex; flex-direction: column;
+      direction: rtl; overflow: hidden;
+      color: var(--text-primary);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── HEADER ── */
+    .chat-header {
+      background: linear-gradient(160deg, var(--primary-dark) 0%, var(--primary) 40%, var(--primary-light) 100%);
+      color: white;
+      padding: 14px 18px;
+      display: flex; align-items: center; gap: 14px;
+      min-height: 66px;
+      position: relative;
+      z-index: 10;
+    }
+    .chat-header::after {
+      content: '';
+      position: absolute;
+      bottom: -1px; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(34,197,94,0.4), transparent);
+    }
+
+    .avatar {
+      width: 44px; height: 44px;
+      border-radius: var(--radius-full);
+      background: linear-gradient(135deg, var(--accent), #16a34a);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 2px 10px rgba(34,197,94,0.3);
+      position: relative;
+    }
+    .avatar::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: var(--radius-full);
+      border: 2px solid rgba(255,255,255,0.2);
+    }
+    .avatar-letter {
+      font-size: 17px; font-weight: 600; color: white;
+      letter-spacing: -0.5px;
+    }
+
+    .contact-info { flex: 1; min-width: 0; }
+    .contact-name {
+      font-size: 15px; font-weight: 600;
+      line-height: 1.3; letter-spacing: -0.2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .contact-phone {
+      font-size: 11.5px; opacity: 0.7;
+      direction: ltr; text-align: right;
+      font-weight: 300; letter-spacing: 0.3px;
+      margin-top: 1px;
+    }
+
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+
+    .status-badge {
+      font-size: 10px; padding: 3px 10px;
+      border-radius: var(--radius-full);
+      font-weight: 500; letter-spacing: 0.2px;
+      backdrop-filter: blur(8px);
+      animation: fadeIn 0.5s ease;
+    }
+    .status-badge.connected {
+      background: rgba(34,197,94,0.2);
+      border: 1px solid rgba(34,197,94,0.5);
+      color: #bbf7d0;
+    }
+    .status-badge.connected::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #22c55e;
+      margin-left: 5px;
+      animation: pulse-dot 2s ease infinite;
+    }
+    .status-badge.disconnected {
+      background: rgba(239,68,68,0.2);
+      border: 1px solid rgba(239,68,68,0.4);
+      color: #fecaca;
+    }
+
+    .btn-close {
+      width: 30px; height: 30px;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.7);
+      cursor: pointer; font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+      backdrop-filter: blur(4px);
+    }
+    .btn-close:hover {
+      background: rgba(255,255,255,0.18);
+      color: white;
+      transform: scale(1.08);
+    }
+
+    /* ── MESSAGES AREA ── */
+    .chat-messages {
+      flex: 1; overflow-y: auto;
+      padding: 16px 18px 12px;
+      background: var(--bg-chat);
+      background-image:
+        radial-gradient(circle at 20% 50%, rgba(10,104,89,0.03) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(34,197,94,0.03) 0%, transparent 50%),
+        url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000' fill-opacity='0.015'%3E%3Ccircle cx='40' cy='40' r='1'/%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    /* Messages */
+    .message {
+      max-width: 78%;
+      margin-bottom: 5px;
+      padding: 9px 12px 5px;
+      font-size: 13.5px;
+      line-height: 1.5;
+      word-wrap: break-word;
+      position: relative;
+      animation: msgIn 0.3s cubic-bezier(0.22,1,0.36,1);
+    }
+
+    .message.incoming {
+      background: var(--bubble-in);
+      margin-left: auto;
+      border-radius: var(--radius-md) 4px var(--radius-md) var(--radius-md);
+      border: 1px solid var(--bubble-in-border);
+      box-shadow: var(--shadow-sm);
+    }
+    .message.outgoing {
+      background: var(--bubble-out);
+      margin-right: auto;
+      border-radius: 4px var(--radius-md) var(--radius-md) var(--radius-md);
+      border: 1px solid var(--bubble-out-border);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .message .msg-text {
+      margin-bottom: 3px;
+      color: var(--text-primary);
+      font-weight: 400;
+    }
+    .message .time {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-align: left;
+      display: flex; align-items: center;
+      justify-content: flex-start; gap: 3px;
+      font-weight: 300;
+    }
+    .message .status-icon {
+      color: #34d399;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* ── MEDIA IN MESSAGES ── */
+    .msg-media {
+      margin-bottom: 6px;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+    .msg-media img {
+      max-width: 100%;
+      max-height: 240px;
+      display: block;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      object-fit: cover;
+    }
+    .msg-media img:hover { opacity: 0.9; }
+
+    .msg-media video {
+      max-width: 100%;
+      max-height: 240px;
+      border-radius: 8px;
+      display: block;
+      background: #000;
+    }
+
+    .msg-media-doc {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: rgba(0,0,0,0.04);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+      text-decoration: none;
+      color: inherit;
+    }
+    .msg-media-doc:hover { background: rgba(0,0,0,0.08); }
+
+    .doc-icon {
+      width: 40px; height: 40px;
+      border-radius: 8px;
+      background: var(--primary);
+      color: white;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .doc-info { flex: 1; min-width: 0; }
+    .doc-name {
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .doc-size {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+    .doc-download {
+      font-size: 18px;
+      color: var(--primary);
+      flex-shrink: 0;
+    }
+
+    /* ── LIGHTBOX ── */
+    .lightbox-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.88);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      animation: fadeIn 0.2s ease;
+    }
+    .lightbox-overlay.active { display: flex; }
+    .lightbox-overlay img {
+      max-width: 92%;
+      max-height: 90vh;
+      border-radius: 8px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+      cursor: default;
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 14px; left: 14px;
+      width: 36px; height: 36px;
+      background: rgba(255,255,255,0.15);
+      border: none;
+      border-radius: 50%;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s;
+    }
+    .lightbox-close:hover { background: rgba(255,255,255,0.3); }
+
+    /* ── UPLOAD PREVIEW ── */
+    .upload-preview {
+      display: none;
+      background: var(--surface);
+      border-top: 1px solid #e2e8f0;
+      padding: 10px 14px;
+      align-items: center;
+      gap: 10px;
+      animation: fadeIn 0.2s ease;
+    }
+    .upload-preview.active { display: flex; }
+
+    .upload-thumb {
+      width: 52px; height: 52px;
+      border-radius: 8px;
+      object-fit: cover;
+      border: 1px solid #e2e8f0;
+      flex-shrink: 0;
+    }
+    .upload-file-icon {
+      width: 52px; height: 52px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      color: white;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .upload-info { flex: 1; min-width: 0; }
+    .upload-name {
+      font-size: 12.5px; font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      color: var(--text-primary);
+    }
+    .upload-size {
+      font-size: 11px; color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .upload-caption-input {
+      flex: 1;
+      padding: 7px 12px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: var(--radius-lg);
+      font-size: 12.5px;
+      font-family: 'Rubik', sans-serif;
+      outline: none;
+      direction: rtl;
+      background: #f8fafc;
+      color: var(--text-primary);
+      transition: all 0.2s;
+    }
+    .upload-caption-input:focus {
+      border-color: var(--primary);
+      background: white;
+    }
+    .upload-cancel {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      border: 1px solid #e2e8f0;
+      background: white;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text-muted);
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .upload-cancel:hover { background: #fee2e2; color: #dc2626; border-color: #dc2626; }
+
+    .upload-send {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      color: white;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(10,104,89,0.25);
+    }
+    .upload-send:hover { transform: scale(1.08); }
+    .upload-send:disabled { background: #cbd5e1; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* ── UPLOAD PROGRESS ── */
+    .upload-progress {
+      display: none;
+      padding: 3px 12px;
+      background: var(--surface);
+    }
+    .upload-progress.active { display: block; }
+    .upload-progress-bar {
+      height: 3px;
+      background: #e2e8f0;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .upload-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      border-radius: 2px;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .date-divider {
+      text-align: center;
+      margin: 14px 0 10px;
+    }
+    .date-divider span {
+      background: var(--glass);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--glass-border);
+      padding: 4px 14px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      letter-spacing: 0.2px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .msg-count {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 6px 0 8px;
+      font-weight: 400;
+      letter-spacing: 0.3px;
+    }
+
+    /* ── QUICK REPLIES ── */
+    .quick-replies {
+      background: var(--surface);
+      padding: 8px 14px;
+      display: flex; gap: 6px;
+      overflow-x: auto;
+      border-top: 1px solid #e2e8f0;
+    }
+    .quick-replies::-webkit-scrollbar { height: 0; }
+
+    .qr-btn {
+      white-space: nowrap;
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      border: 1px solid #d1d5db;
+      background: var(--surface);
+      font-size: 12px;
+      font-family: 'Rubik', sans-serif;
+      font-weight: 400;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+      flex-shrink: 0;
+    }
+    .qr-btn:hover {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(10,104,89,0.25);
+      transform: translateY(-1px);
+    }
+    .qr-btn:active { transform: translateY(0); }
+
+    /* ── INPUT AREA ── */
+    .chat-input {
+      background: var(--surface);
+      padding: 10px 14px;
+      display: flex; align-items: center; gap: 8px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .btn-attach {
+      width: 38px; height: 38px;
+      border-radius: var(--radius-full);
+      border: 1px solid #e2e8f0;
+      background: white;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.25s;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .btn-attach:hover {
+      background: var(--surface-hover);
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+    .btn-attach svg { width: 18px; height: 18px; }
+
+    /* Attach Menu */
+    .attach-menu {
+      display: none;
+      position: absolute;
+      bottom: 50px;
+      right: 0;
+      background: white;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
+      border: 1px solid #e2e8f0;
+      overflow: hidden;
+      z-index: 50;
+      min-width: 170px;
+      animation: menuIn 0.2s cubic-bezier(0.22,1,0.36,1);
+    }
+    .attach-menu.active { display: block; }
+
+    @keyframes menuIn {
+      from { opacity: 0; transform: translateY(8px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .attach-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-size: 13px;
+      color: var(--text-primary);
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: right;
+      font-family: 'Rubik', sans-serif;
+    }
+    .attach-menu-item:hover { background: var(--surface-hover); }
+    .attach-menu-item .menu-icon {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .attach-menu-item .menu-icon.img-icon { background: #dbeafe; color: #2563eb; }
+    .attach-menu-item .menu-icon.doc-icon-menu { background: #fce7f3; color: #db2777; }
+    .attach-menu-item .menu-icon.vid-icon { background: #ede9fe; color: #7c3aed; }
+
+    .input-wrapper { flex: 1; position: relative; }
+    .chat-input input {
+      width: 100%;
+      padding: 11px 16px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: var(--radius-lg);
+      font-size: 13.5px;
+      font-family: 'Rubik', sans-serif;
+      font-weight: 400;
+      outline: none;
+      direction: rtl;
+      background: #f8fafc;
+      color: var(--text-primary);
+      transition: all 0.25s ease;
+    }
+    .chat-input input::placeholder {
+      color: var(--text-muted);
+      font-weight: 300;
+    }
+    .chat-input input:focus {
+      border-color: var(--primary);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(10,104,89,0.08);
+    }
+
+    .btn-send {
+      width: 42px; height: 42px;
+      border-radius: var(--radius-full);
+      border: none;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      color: white;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(10,104,89,0.25);
+    }
+    .btn-send:hover {
+      transform: scale(1.08);
+      box-shadow: 0 4px 16px rgba(10,104,89,0.35);
+    }
+    .btn-send:active { transform: scale(0.96); }
+    .btn-send:disabled {
+      background: #cbd5e1;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .btn-send svg { transition: transform 0.2s; }
+    .btn-send:hover svg { transform: translate(-1px, -1px); }
+
+    /* ── STATES ── */
+    .state-box {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 100%; color: var(--text-muted);
+      gap: 12px; padding: 24px;
+      text-align: center;
+      animation: fadeIn 0.5s ease;
+    }
+    .state-icon { font-size: 48px; }
+    .state-title {
+      font-size: 15px; font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: -0.2px;
+    }
+    .state-sub {
+      font-size: 12.5px; color: var(--text-muted);
+      font-weight: 300; line-height: 1.5;
+    }
+
+    .spinner {
+      width: 34px; height: 34px;
+      border: 2.5px solid #e2e8f0;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.9s cubic-bezier(0.4,0,0.2,1) infinite;
+    }
+
+    .error-state .state-title { color: #dc2626; }
+    .btn-retry {
+      padding: 8px 22px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      font-size: 13px;
+      font-family: 'Rubik', sans-serif;
+      font-weight: 500;
+      transition: all 0.2s;
+      box-shadow: var(--shadow-md);
+    }
+    .btn-retry:hover {
+      background: var(--primary-light);
+      transform: translateY(-1px);
+    }
+
+    /* ── SCROLLBAR ── */
+    .chat-messages::-webkit-scrollbar { width: 4px; }
+    .chat-messages::-webkit-scrollbar-track { background: transparent; }
+    .chat-messages::-webkit-scrollbar-thumb {
+      background: rgba(0,0,0,0.12);
+      border-radius: var(--radius-full);
+    }
+    .chat-messages::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
+
+    /* ── ANIMATIONS ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes msgIn {
+      from { opacity: 0; transform: translateY(8px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="chat-header">
+    <div class="avatar"><span class="avatar-letter" id="avatarLetter">?</span></div>
+    <div class="contact-info">
+      <div class="contact-name" id="contactName">טוען...</div>
+      <div class="contact-phone" id="contactPhone"></div>
+    </div>
+    <div class="header-actions">
+      <span class="status-badge disconnected" id="statusBadge">מנותק</span>
+      <button class="btn-close" onclick="closeWidget()" title="סגור">✕</button>
+    </div>
+  </div>
+
+  <div class="chat-messages" id="chatMessages">
+    <div class="state-box" id="loadingState">
+      <div class="spinner"></div>
+      <div class="state-title">טוען שיחה...</div>
+    </div>
+  </div>
+
+  <!-- Lightbox for image preview -->
+  <div class="lightbox-overlay" id="lightbox" onclick="closeLightbox(event)">
+    <button class="lightbox-close" onclick="closeLightbox(event)">✕</button>
+    <img id="lightboxImg" src="" alt="תמונה">
+  </div>
+
+  <div class="quick-replies" id="quickReplies" style="display:none">
+    <button class="qr-btn" onclick="quickSend('היי, קיבלתי את הפנייה שלך ואטפל בה בהקדם')">קיבלתי את הפנייה</button>
+    <button class="qr-btn" onclick="quickSend('תודה רבה! יום נעים')">תודה, יום נעים</button>
+    <button class="qr-btn" onclick="quickSend('האם תוכל לשלוח לי פרטים נוספים?')">שלח פרטים נוספים</button>
+    <button class="qr-btn" onclick="quickSend('אשמח לתאם שיחה, מתי נוח לך?')">תיאום שיחה</button>
+  </div>
+
+  <!-- Upload preview bar -->
+  <div class="upload-preview" id="uploadPreview">
+    <div id="uploadThumb"></div>
+    <div class="upload-info">
+      <div class="upload-name" id="uploadName"></div>
+      <div class="upload-size" id="uploadSize"></div>
+    </div>
+    <input type="text" class="upload-caption-input" id="uploadCaption" placeholder="הוסף כיתוב (אופציונלי)..." />
+    <button class="upload-cancel" onclick="cancelUpload()" title="בטל">✕</button>
+    <button class="upload-send" id="uploadSendBtn" onclick="sendMedia()" title="שלח">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </div>
+
+  <!-- Upload progress -->
+  <div class="upload-progress" id="uploadProgress">
+    <div class="upload-progress-bar">
+      <div class="upload-progress-fill" id="uploadProgressFill"></div>
+    </div>
+  </div>
+
+  <div class="chat-input">
+    <!-- Attach button -->
+    <div style="position:relative">
+      <button class="btn-attach" id="attachBtn" onclick="toggleAttachMenu()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+      </button>
+      <div class="attach-menu" id="attachMenu">
+        <button class="attach-menu-item" onclick="triggerFileInput('image')">
+          <div class="menu-icon img-icon">🖼️</div>
+          <span>תמונה</span>
+        </button>
+        <button class="attach-menu-item" onclick="triggerFileInput('document')">
+          <div class="menu-icon doc-icon-menu">📄</div>
+          <span>מסמך</span>
+        </button>
+        <button class="attach-menu-item" onclick="triggerFileInput('video')">
+          <div class="menu-icon vid-icon">🎥</div>
+          <span>וידאו</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="input-wrapper">
+      <input type="text" id="messageInput" placeholder="כתוב הודעה..." disabled autocomplete="off">
+    </div>
+    <button class="btn-send" id="sendBtn" disabled onclick="sendMessage()">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </div>
+
+  <!-- Hidden file input -->
+  <input type="file" id="fileInput" style="display:none" onchange="handleFileSelect(event)" />
+
+<script>
+const CONFIG = {
+  N8N_BASE_URL: 'https://n8n.srv1254786.hstgr.cloud',
+  N8N_SEND_PATH: '/webhook/whatsapp-send',
+  N8N_SEND_MEDIA_PATH: '/webhook/whatsapp-send-media',
+  N8N_HISTORY_PATH: '/webhook/whatsapp-history',
+  PHONE_FIELD: 'Phone',
+  POLL_INTERVAL: 10000,
+  ZOHO_MODULE: 'WhatsApp_Messages',
+  MAX_FILE_SIZE: 50 * 1024 * 1024, // 50MB limit
+};
+
+const FILE_ACCEPT = {
+  image: 'image/jpeg,image/png,image/gif,image/webp',
+  document: '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar',
+  video: 'video/mp4,video/3gpp,video/quicktime'
+};
+
+const DOC_ICONS = {
+  pdf: '📕', doc: '📘', docx: '📘', xls: '📗', xlsx: '📗',
+  ppt: '📙', pptx: '📙', txt: '📝', csv: '📊',
+  zip: '📦', rar: '📦', default: '📎'
+};
+
+let currentRecordId = null;
+let currentModule = null;
+let currentPhone = null;
+let contactName = '';
+let pollingTimer = null;
+let lastMessageTimestamp = null;
+let pendingFile = null; // { file, type, base64, name, size }
+
+ZOHO.embeddedApp.on("PageLoad", function(data) {
+  currentRecordId = data.EntityId;
+  currentModule = data.Entity;
+  loadContactData();
+});
+ZOHO.embeddedApp.init();
+
+// ═══════════════════════════════════════
+// CONTACT DATA
+// ═══════════════════════════════════════
+async function loadContactData() {
+  try {
+    const response = await ZOHO.CRM.API.getRecord({ Entity: currentModule, RecordID: currentRecordId });
+    const record = response.data[0];
+    currentPhone = record[CONFIG.PHONE_FIELD] || record.Mobile || record.Phone || null;
+    currentPhone = currentPhone?.trim() || null;
+
+    if (currentModule === 'Deals') {
+      contactName = record.Deal_Name || record.Account_Name?.name || 'עסקה';
+      if (!currentPhone && record.Customer_link) {
+        const c = await ZOHO.CRM.API.getRecord({ Entity: 'Contacts', RecordID: record.Customer_link.id });
+        if (c.data?.[0]) {
+          currentPhone = c.data[0].Mobile || c.data[0].Phone;
+          contactName = `${c.data[0].First_Name || ''} ${c.data[0].Last_Name || ''}`.trim() || contactName;
+        }
+      }
+    } else if (currentModule === 'Cases') {
+      contactName = record.Subject || 'קריאת שירות';
+      if (record.Link_Contact) {
+        const c = await ZOHO.CRM.API.getRecord({ Entity: 'Contacts', RecordID: record.Link_Contact.id });
+        if (c.data?.[0]) {
+          currentPhone = c.data[0].Mobile || c.data[0].Phone;
+          contactName = `${c.data[0].First_Name || ''} ${c.data[0].Last_Name || ''}`.trim() || contactName;
+        }
+      }
+    } else {
+      contactName = `${record.First_Name || ''} ${record.Last_Name || ''}`.trim() || record.Full_Name || 'איש קשר';
+    }
+
+    document.getElementById('contactName').textContent = contactName;
+    document.getElementById('contactPhone').textContent = formatPhoneDisplay(currentPhone);
+    document.getElementById('avatarLetter').textContent = contactName ? contactName.charAt(0) : '?';
+
+    if (currentPhone) {
+      document.getElementById('statusBadge').textContent = 'מחובר';
+      document.getElementById('statusBadge').className = 'status-badge connected';
+      document.getElementById('messageInput').disabled = false;
+      document.getElementById('sendBtn').disabled = false;
+      document.getElementById('quickReplies').style.display = 'flex';
+      await loadChatHistory();
+      startPolling();
+    } else {
+      showError('לא נמצא מספר טלפון לרשומה זו');
+    }
+  } catch (err) {
+    console.error('loadContactData error:', err);
+    showError('שגיאה בטעינת נתוני הלקוח');
+  }
+}
+
+// ═══════════════════════════════════════
+// CHAT HISTORY
+// ═══════════════════════════════════════
+async function loadChatHistory() {
+  const el = document.getElementById('chatMessages');
+  try {
+    const res = await fetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_HISTORY_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: normalizePhone(currentPhone), recordId: currentRecordId, module: currentModule })
+    });
+    const data = await res.json();
+    if (data.messages?.length > 0) {
+      el.innerHTML = `<div class="msg-count">${data.messages.length} הודעות</div>`;
+      let lastDate = '';
+      data.messages.forEach(msg => {
+        const d = new Date(msg.timestamp).toLocaleDateString('he-IL');
+        if (d !== lastDate) {
+          lastDate = d;
+          const div = document.createElement('div');
+          div.className = 'date-divider';
+          div.innerHTML = `<span>${d}</span>`;
+          el.appendChild(div);
+        }
+        appendMessage(msg);
+      });
+      lastMessageTimestamp = data.messages[data.messages.length - 1].timestamp;
+      scrollToBottom();
+    } else {
+      el.innerHTML = `
+        <div class="state-box">
+          <div class="state-icon">💬</div>
+          <div class="state-title">אין הודעות עדיין</div>
+          <div class="state-sub">שלח הודעה ראשונה או השתמש בתשובות מהירות למטה</div>
+        </div>`;
+    }
+  } catch (err) {
+    console.error('loadChatHistory error:', err);
+    el.innerHTML = `
+      <div class="state-box error-state">
+        <div class="state-icon">⚠️</div>
+        <div class="state-title">שגיאה בטעינת ההיסטוריה</div>
+        <button class="btn-retry" onclick="loadChatHistory()">נסה שוב</button>
+      </div>`;
+  }
+}
+
+// ═══════════════════════════════════════
+// SEND TEXT MESSAGE
+// ═══════════════════════════════════════
+async function sendMessage() {
+  const input = document.getElementById('messageInput');
+  const text = input.value.trim();
+  if (!text || !currentPhone) return;
+  document.getElementById('sendBtn').disabled = true;
+  input.value = '';
+  const empty = document.querySelector('.state-box');
+  if (empty && document.getElementById('chatMessages').contains(empty)) empty.remove();
+  appendMessage({ direction: 'outgoing', text, timestamp: new Date().toISOString(), status: 'sending', type: 'text' });
+  scrollToBottom();
+  try {
+    const res = await fetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_SEND_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: normalizePhone(currentPhone), message: text, recordId: currentRecordId, module: currentModule, contactName })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'failed');
+    const msgs = document.querySelectorAll('.message.outgoing');
+    const last = msgs[msgs.length - 1];
+    if (last) {
+      const t = last.querySelector('.time');
+      const tm = t.textContent.replace('🕐 ', '');
+      t.innerHTML = `<span class="status-icon">✓✓</span> ${tm}`;
+    }
+  } catch (err) {
+    console.error('sendMessage error:', err);
+    const msgs = document.querySelectorAll('.message.outgoing');
+    const last = msgs[msgs.length - 1];
+    if (last) {
+      const t = last.querySelector('.time');
+      t.innerHTML = '❌ שליחה נכשלה — לחץ לנסות שוב';
+      t.style.color = '#dc2626';
+      t.style.cursor = 'pointer';
+      t.onclick = () => { input.value = text; last.remove(); sendMessage(); };
+    }
+  }
+  document.getElementById('sendBtn').disabled = false;
+  input.focus();
+}
+
+// ═══════════════════════════════════════
+// MEDIA — ATTACH MENU
+// ═══════════════════════════════════════
+function toggleAttachMenu() {
+  const menu = document.getElementById('attachMenu');
+  menu.classList.toggle('active');
+}
+
+function closeAttachMenu() {
+  document.getElementById('attachMenu').classList.remove('active');
+}
+
+function triggerFileInput(type) {
+  closeAttachMenu();
+  const input = document.getElementById('fileInput');
+  input.accept = FILE_ACCEPT[type] || '*/*';
+  input.dataset.mediaType = type;
+  input.value = '';
+  input.click();
+}
+
+// Close attach menu on outside click
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#attachBtn') && !e.target.closest('#attachMenu')) {
+    closeAttachMenu();
+  }
+});
+
+// ═══════════════════════════════════════
+// MEDIA — FILE SELECT & PREVIEW
+// ═══════════════════════════════════════
+function handleFileSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (file.size > CONFIG.MAX_FILE_SIZE) {
+    alert('הקובץ גדול מדי. הגבלה: 50MB');
+    return;
+  }
+
+  const type = event.target.dataset.mediaType || detectFileType(file);
+
+  // Show preview
+  const preview = document.getElementById('uploadPreview');
+  const thumbEl = document.getElementById('uploadThumb');
+  document.getElementById('uploadName').textContent = file.name;
+  document.getElementById('uploadSize').textContent = formatFileSize(file.size);
+  document.getElementById('uploadCaption').value = '';
+
+  if (type === 'image') {
+    const url = URL.createObjectURL(file);
+    thumbEl.innerHTML = `<img class="upload-thumb" src="${url}" alt="preview" />`;
+  } else if (type === 'video') {
+    thumbEl.innerHTML = `<div class="upload-file-icon">🎥</div>`;
+  } else {
+    const ext = file.name.split('.').pop().toLowerCase();
+    const icon = DOC_ICONS[ext] || DOC_ICONS.default;
+    thumbEl.innerHTML = `<div class="upload-file-icon">${icon}</div>`;
+  }
+
+  preview.classList.add('active');
+
+  // Read file as base64
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const base64Full = e.target.result; // data:mime;base64,xxxx
+    const base64Data = base64Full.split(',')[1];
+    pendingFile = {
+      file,
+      type,
+      base64: base64Data,
+      name: file.name,
+      size: file.size,
+      mimeType: file.type
+    };
+  };
+  reader.readAsDataURL(file);
+}
+
+function detectFileType(file) {
+  if (file.type.startsWith('image/')) return 'image';
+  if (file.type.startsWith('video/')) return 'video';
+  return 'document';
+}
+
+function cancelUpload() {
+  pendingFile = null;
+  document.getElementById('uploadPreview').classList.remove('active');
+  document.getElementById('uploadProgress').classList.remove('active');
+}
+
+// ═══════════════════════════════════════
+// MEDIA — SEND
+// ═══════════════════════════════════════
+async function sendMedia() {
+  if (!pendingFile || !currentPhone) return;
+
+  const caption = document.getElementById('uploadCaption').value.trim();
+  const file = pendingFile;
+  const displayText = file.type === 'document'
+    ? file.name
+    : (caption || (file.type === 'image' ? '[תמונה]' : '[וידאו]'));
+
+  // Disable send and show progress
+  document.getElementById('uploadSendBtn').disabled = true;
+  const progressEl = document.getElementById('uploadProgress');
+  const progressFill = document.getElementById('uploadProgressFill');
+  progressEl.classList.add('active');
+  progressFill.style.width = '20%';
+
+  // Remove empty state
+  const empty = document.querySelector('.state-box');
+  if (empty && document.getElementById('chatMessages').contains(empty)) empty.remove();
+
+  // Add preview message to chat
+  appendMessage({
+    direction: 'outgoing',
+    text: displayText,
+    timestamp: new Date().toISOString(),
+    status: 'sending',
+    type: file.type,
+    mediaUrl: file.type === 'image' ? URL.createObjectURL(file.file) : null,
+    fileName: file.name
+  });
+  scrollToBottom();
+
+  try {
+    progressFill.style.width = '50%';
+
+    const res = await fetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_SEND_MEDIA_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: normalizePhone(currentPhone),
+        fileBase64: file.base64,
+        fileName: file.name,
+        fileType: file.type,
+        mimeType: file.mimeType,
+        caption: caption,
+        recordId: currentRecordId,
+        module: currentModule,
+        contactName: contactName
+      })
+    });
+
+    progressFill.style.width = '90%';
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.error || 'failed');
+
+    progressFill.style.width = '100%';
+
+    // Update last message status
+    const msgs = document.querySelectorAll('.message.outgoing');
+    const last = msgs[msgs.length - 1];
+    if (last) {
+      const t = last.querySelector('.time');
+      const tm = t.textContent.replace('🕐 ', '');
+      t.innerHTML = `<span class="status-icon">✓✓</span> ${tm}`;
+    }
+  } catch (err) {
+    console.error('sendMedia error:', err);
+    const msgs = document.querySelectorAll('.message.outgoing');
+    const last = msgs[msgs.length - 1];
+    if (last) {
+      const t = last.querySelector('.time');
+      t.innerHTML = '❌ שליחה נכשלה';
+      t.style.color = '#dc2626';
+    }
+  }
+
+  // Cleanup
+  setTimeout(() => {
+    progressEl.classList.remove('active');
+    progressFill.style.width = '0%';
+  }, 500);
+  document.getElementById('uploadPreview').classList.remove('active');
+  document.getElementById('uploadSendBtn').disabled = false;
+  pendingFile = null;
+}
+
+// ═══════════════════════════════════════
+// QUICK SEND
+// ═══════════════════════════════════════
+function quickSend(text) {
+  document.getElementById('messageInput').value = text;
+  sendMessage();
+}
+
+// ═══════════════════════════════════════
+// POLLING
+// ═══════════════════════════════════════
+function startPolling() {
+  if (pollingTimer) clearInterval(pollingTimer);
+  pollingTimer = setInterval(async () => {
+    try {
+      const res = await fetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_HISTORY_PATH, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: normalizePhone(currentPhone), recordId: currentRecordId, module: currentModule, since: lastMessageTimestamp })
+      });
+      const data = await res.json();
+      if (data.messages?.length > 0) {
+        const empty = document.querySelector('.state-box');
+        if (empty) empty.remove();
+        data.messages.forEach(msg => appendMessage(msg));
+        lastMessageTimestamp = data.messages[data.messages.length - 1].timestamp;
+        scrollToBottom();
+      }
+    } catch (err) { console.error('Polling error:', err); }
+  }, CONFIG.POLL_INTERVAL);
+}
+
+// ═══════════════════════════════════════
+// CLOSE WIDGET
+// ═══════════════════════════════════════
+function closeWidget() {
+  if (pollingTimer) clearInterval(pollingTimer);
+  try { ZOHO.CRM.UI.Popup.close(); } catch(e) {
+    try { ZOHO.CRM.UI.Popup.closeReload(); } catch(e2) {}
+  }
+}
+
+// ═══════════════════════════════════════
+// LIGHTBOX
+// ═══════════════════════════════════════
+function openLightbox(src) {
+  const lb = document.getElementById('lightbox');
+  document.getElementById('lightboxImg').src = src;
+  lb.classList.add('active');
+}
+
+function closeLightbox(e) {
+  if (e.target === document.getElementById('lightbox') || e.target.closest('.lightbox-close')) {
+    document.getElementById('lightbox').classList.remove('active');
+  }
+}
+
+// ═══════════════════════════════════════
+// APPEND MESSAGE (with media support)
+// ═══════════════════════════════════════
+function appendMessage(msg) {
+  const el = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = `message ${msg.direction || 'outgoing'}`;
+  const time = new Date(msg.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  const icon = msg.direction === 'outgoing'
+    ? (msg.status === 'sending' ? '🕐 ' : '<span class="status-icon">✓✓</span> ')
+    : '';
+
+  const msgType = msg.type || 'text';
+  let mediaHtml = '';
+  let textContent = msg.text || '';
+
+  if (msgType === 'image' && msg.mediaUrl) {
+    mediaHtml = `<div class="msg-media"><img src="${escapeAttr(msg.mediaUrl)}" alt="תמונה" onclick="openLightbox('${escapeAttr(msg.mediaUrl)}')" loading="lazy" /></div>`;
+    // Show caption below image if exists and is not just [תמונה]
+    if (textContent === '[תמונה]' || textContent === '[image]') textContent = '';
+  } else if (msgType === 'video' && msg.mediaUrl) {
+    mediaHtml = `<div class="msg-media"><video src="${escapeAttr(msg.mediaUrl)}" controls preload="metadata"></video></div>`;
+    if (textContent === '[וידאו]' || textContent === '[video]') textContent = '';
+  } else if (msgType === 'document' && msg.mediaUrl) {
+    const fileName = msg.fileName || msg.text || 'מסמך';
+    const ext = fileName.split('.').pop().toLowerCase();
+    const docIcon = DOC_ICONS[ext] || DOC_ICONS.default;
+    mediaHtml = `<a class="msg-media-doc" href="${escapeAttr(msg.mediaUrl)}" target="_blank" rel="noopener">
+      <div class="doc-icon">${docIcon}</div>
+      <div class="doc-info">
+        <div class="doc-name">${escapeHtml(fileName)}</div>
+        <div class="doc-size">${msg.fileSize ? formatFileSize(msg.fileSize) : 'לחץ להורדה'}</div>
+      </div>
+      <div class="doc-download">⬇</div>
+    </a>`;
+    textContent = ''; // doc name shown in the doc widget
+  } else if (msgType === 'document' && !msg.mediaUrl) {
+    // Document without URL (sending state)
+    const fileName = msg.fileName || msg.text || 'מסמך';
+    const ext = fileName.split('.').pop().toLowerCase();
+    const docIcon = DOC_ICONS[ext] || DOC_ICONS.default;
+    mediaHtml = `<div class="msg-media-doc">
+      <div class="doc-icon">${docIcon}</div>
+      <div class="doc-info">
+        <div class="doc-name">${escapeHtml(fileName)}</div>
+        <div class="doc-size">שולח...</div>
+      </div>
+    </div>`;
+    textContent = '';
+  }
+
+  const textHtml = textContent ? `<div class="msg-text">${escapeHtml(textContent)}</div>` : '';
+  div.innerHTML = `${mediaHtml}${textHtml}<div class="time">${icon}${time}</div>`;
+  el.appendChild(div);
+}
+
+// ═══════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════
+function scrollToBottom() {
+  const el = document.getElementById('chatMessages');
+  requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+}
+
+function showError(text) {
+  document.getElementById('chatMessages').innerHTML = `
+    <div class="state-box error-state">
+      <div class="state-icon">⚠️</div>
+      <div class="state-title">${text}</div>
+    </div>`;
+}
+
+function normalizePhone(phone) {
+  if (!phone) return '';
+  let c = phone.replace(/\D/g, '');
+  if (c.startsWith('0')) c = '972' + c.substring(1);
+  if (!c.startsWith('972') && c.length === 9) c = '972' + c;
+  return c;
+}
+
+function formatPhoneDisplay(phone) {
+  if (!phone) return '';
+  const c = phone.replace(/\D/g, '');
+  if (c.startsWith('972')) {
+    const local = '0' + c.substring(3);
+    return local.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3') + '  ·  +' + c;
+  }
+  return phone;
+}
+
+function escapeHtml(t) {
+  const d = document.createElement('div');
+  d.textContent = t;
+  return d.innerHTML;
+}
+
+function escapeAttr(t) {
+  return t.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+document.getElementById('messageInput').addEventListener('keypress', e => {
+  if (e.key === 'Enter') sendMessage();
+});
+document.getElementById('uploadCaption').addEventListener('keypress', e => {
+  if (e.key === 'Enter') sendMedia();
+});
+window.addEventListener('beforeunload', () => { if (pollingTimer) clearInterval(pollingTimer); });
+</script>
+</body>
+</html>
