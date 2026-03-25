@@ -1504,7 +1504,7 @@ function stopRecTimer() {
 }
 
 async function sendVoiceMessage(blob, mimeType) {
-  const fileName = 'voice_' + Date.now() + '.ogg';
+  const fileName = 'voice_' + Date.now() + '.opus';
 
   // Show in chat immediately
   const localUrl = URL.createObjectURL(blob);
