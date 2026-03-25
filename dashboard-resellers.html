@@ -161,7 +161,7 @@ var time = ''; if (msg.time) { var d = new Date(msg.time); var timeStr = d.toLoc
         '<div class="msg-sender">' + senderHtml + '</div>' +
         '<div class="msg-time">' + time + '</div>' +
       '</div>' +
-      (msg.type === 'audioMessage' && msg.mediaUrl
+      ((msg.type === 'audio' || msg.type === 'audioMessage') && msg.mediaUrl
         ? '<div class="msg-text"><audio src="' + escapeHtml(msg.mediaUrl) + '" controls preload="metadata" style="height:28px;max-width:220px;"></audio></div>'
         : '<div class="msg-text">' + escapeHtml(msg.text || '') + '</div>') +
     '</div>' +

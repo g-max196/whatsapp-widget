@@ -1203,9 +1203,9 @@ function appendMessage(msg) {
   } else if (msgType === 'video' && msg.mediaUrl) {
     mediaHtml = `<div class="msg-media"><video src="${escapeAttr(msg.mediaUrl)}" controls preload="metadata"></video></div>`;
     if (textContent === '[וידאו]' || textContent === '[video]') textContent = '';
-  } else if (msgType === 'audioMessage' && msg.mediaUrl) {
+  } else if ((msgType === 'audio' || msgType === 'audioMessage') && msg.mediaUrl) {
     mediaHtml = `<div class="msg-media"><audio src="${escapeAttr(msg.mediaUrl)}" controls preload="metadata" style="width:100%;max-width:280px;"></audio></div>`;
-    if (textContent === '🎵 הודעה קולית' || textContent === '[audio]') textContent = '';
+    if (textContent === '🎵 הודעה קולית' || textContent === '[הודעה קולית]' || textContent === '[audio]') textContent = '';
   } else if (msgType === 'document' && msg.mediaUrl) {
     const fileName = msg.fileName || msg.text || 'מסמך';
     const ext = fileName.split('.').pop().toLowerCase();
