@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WhatsApp Chat</title>
   <script src="https://live.zwidgets.com/js-sdk/1.2/ZohoEmbededAppSDK.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/opus-media-recorder@latest/OpusMediaRecorder.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/opus-media-recorder@latest/encoderWorker.umd.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -1415,12 +1417,14 @@ async function toggleRecording() {
   // Start recording
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-      ? 'audio/webm;codecs=opus'
-      : MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
-        ? 'audio/ogg;codecs=opus'
-        : 'audio/webm';
-    mediaRecorder = new MediaRecorder(stream, { mimeType });
+    const mimeType = 'audio/ogg;codecs=opus';
+    // Use OpusMediaRecorder polyfill for OGG support in Chrome
+    const Recorder = window.OpusMediaRecorder || MediaRecorder;
+    const workerOptions = window.OpusMediaRecorder ? {
+      OggOpusEncoderWasmPath: 'https://cdn.jsdelivr.net/npm/opus-media-recorder@latest/OggOpusEncoder.wasm',
+      WebMOpusEncoderWasmPath: 'https://cdn.jsdelivr.net/npm/opus-media-recorder@latest/WebMOpusEncoder.wasm'
+    } : undefined;
+    mediaRecorder = new Recorder(stream, { mimeType }, workerOptions);
     audioChunks = [];
 
     mediaRecorder.ondataavailable = e => {
@@ -1500,8 +1504,7 @@ function stopRecTimer() {
 }
 
 async function sendVoiceMessage(blob, mimeType) {
-  const ext = mimeType.includes('ogg') ? 'ogg' : 'webm';
-  const fileName = 'voice_' + Date.now() + '.' + ext;
+  const fileName = 'voice_' + Date.now() + '.ogg';
 
   // Show in chat immediately
   const localUrl = URL.createObjectURL(blob);
