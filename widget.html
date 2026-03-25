@@ -597,6 +597,80 @@
     .btn-send svg { transition: transform 0.2s; }
     .btn-send:hover svg { transform: translate(-1px, -1px); }
 
+    /* ── VOICE RECORD BUTTON ── */
+    .btn-mic {
+      width: 42px; height: 42px;
+      border-radius: var(--radius-full);
+      border: none;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      color: white;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(10,104,89,0.25);
+    }
+    .btn-mic:hover {
+      transform: scale(1.08);
+      box-shadow: 0 4px 16px rgba(10,104,89,0.35);
+    }
+    .btn-mic:disabled {
+      background: #cbd5e1;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .btn-mic.recording {
+      background: linear-gradient(135deg, #dc2626, #ef4444);
+      box-shadow: 0 2px 12px rgba(220,38,38,0.4);
+      animation: pulse-rec 1.2s ease infinite;
+    }
+    @keyframes pulse-rec {
+      0%, 100% { box-shadow: 0 2px 12px rgba(220,38,38,0.4); }
+      50% { box-shadow: 0 2px 20px rgba(220,38,38,0.7); }
+    }
+
+    .recording-bar {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      padding: 0 12px;
+    }
+    .recording-bar.active { display: flex; }
+    .rec-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #dc2626;
+      animation: pulse-rec-dot 1s ease infinite;
+    }
+    @keyframes pulse-rec-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    .rec-timer {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+      direction: ltr;
+    }
+    .btn-cancel-rec {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 13px;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      transition: all 0.2s;
+      font-family: 'Rubik', sans-serif;
+    }
+    .btn-cancel-rec:hover {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+
     /* ── STATES ── */
     .state-box {
       display: flex; flex-direction: column;
@@ -743,11 +817,19 @@
       </div>
     </div>
 
-    <div class="input-wrapper">
+    <div class="input-wrapper" id="inputWrapper">
       <input type="text" id="messageInput" placeholder="כתוב הודעה..." disabled autocomplete="off">
     </div>
-    <button class="btn-send" id="sendBtn" disabled onclick="sendMessage()">
+    <div class="recording-bar" id="recordingBar">
+      <div class="rec-dot"></div>
+      <span class="rec-timer" id="recTimer">0:00</span>
+      <button class="btn-cancel-rec" onclick="cancelRecording()">ביטול</button>
+    </div>
+    <button class="btn-send" id="sendBtn" disabled onclick="sendMessage()" style="display:none">
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+    <button class="btn-mic" id="micBtn" disabled onclick="toggleRecording()" title="הקלט הודעה קולית">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="1" width="6" height="11" rx="3"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
     </button>
   </div>
 
@@ -839,7 +921,9 @@ async function loadContactData() {
       document.getElementById('statusBadge').className = 'status-badge connected';
       document.getElementById('messageInput').disabled = false;
       document.getElementById('sendBtn').disabled = false;
+      document.getElementById('micBtn').disabled = false;
       document.getElementById('quickReplies').style.display = 'flex';
+      updateInputButtons();
       await loadChatHistory();
       startPolling();
     } else {
@@ -1292,10 +1376,194 @@ function formatFileSize(bytes) {
 document.getElementById('messageInput').addEventListener('keypress', e => {
   if (e.key === 'Enter') sendMessage();
 });
+document.getElementById('messageInput').addEventListener('input', updateInputButtons);
 document.getElementById('uploadCaption').addEventListener('keypress', e => {
   if (e.key === 'Enter') sendMedia();
 });
-window.addEventListener('beforeunload', () => { if (pollingTimer) clearInterval(pollingTimer); });
+window.addEventListener('beforeunload', () => {
+  if (pollingTimer) clearInterval(pollingTimer);
+  if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+});
+
+// ═══════════════════════════════════════
+// VOICE RECORDING
+// ═══════════════════════════════════════
+let mediaRecorder = null;
+let audioChunks = [];
+let recTimerInterval = null;
+let recStartTime = 0;
+
+function updateInputButtons() {
+  const hasText = document.getElementById('messageInput').value.trim().length > 0;
+  const sendBtn = document.getElementById('sendBtn');
+  const micBtn = document.getElementById('micBtn');
+  if (hasText) {
+    sendBtn.style.display = 'flex';
+    micBtn.style.display = 'none';
+  } else {
+    sendBtn.style.display = 'none';
+    micBtn.style.display = 'flex';
+  }
+}
+
+async function toggleRecording() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    // Stop recording → send
+    mediaRecorder.stop();
+    return;
+  }
+  // Start recording
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus'
+      : MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
+        ? 'audio/ogg;codecs=opus'
+        : 'audio/webm';
+    mediaRecorder = new MediaRecorder(stream, { mimeType });
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = e => {
+      if (e.data.size > 0) audioChunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = async () => {
+      // Stop all tracks
+      stream.getTracks().forEach(t => t.stop());
+      stopRecTimer();
+      showRecordingUI(false);
+
+      if (audioChunks.length === 0) return; // cancelled
+
+      const blob = new Blob(audioChunks, { type: mimeType });
+      audioChunks = [];
+
+      // Convert to base64 and send
+      await sendVoiceMessage(blob, mimeType);
+    };
+
+    mediaRecorder.start();
+    showRecordingUI(true);
+    startRecTimer();
+  } catch (err) {
+    console.error('Mic access error:', err);
+    alert('לא ניתן לגשת למיקרופון. יש לאשר גישה בדפדפן.');
+  }
+}
+
+function cancelRecording() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    audioChunks = []; // clear so onstop won't send
+    mediaRecorder.stop();
+  }
+}
+
+function showRecordingUI(show) {
+  const inputWrapper = document.getElementById('inputWrapper');
+  const recordingBar = document.getElementById('recordingBar');
+  const micBtn = document.getElementById('micBtn');
+  const attachBtn = document.getElementById('attachBtn');
+
+  if (show) {
+    inputWrapper.style.display = 'none';
+    recordingBar.classList.add('active');
+    micBtn.classList.add('recording');
+    micBtn.title = 'עצור ושלח';
+    attachBtn.style.display = 'none';
+  } else {
+    inputWrapper.style.display = '';
+    recordingBar.classList.remove('active');
+    micBtn.classList.remove('recording');
+    micBtn.title = 'הקלט הודעה קולית';
+    attachBtn.style.display = '';
+    updateInputButtons();
+  }
+}
+
+function startRecTimer() {
+  recStartTime = Date.now();
+  const timerEl = document.getElementById('recTimer');
+  timerEl.textContent = '0:00';
+  recTimerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - recStartTime) / 1000);
+    const mins = Math.floor(elapsed / 60);
+    const secs = elapsed % 60;
+    timerEl.textContent = mins + ':' + String(secs).padStart(2, '0');
+  }, 1000);
+}
+
+function stopRecTimer() {
+  if (recTimerInterval) {
+    clearInterval(recTimerInterval);
+    recTimerInterval = null;
+  }
+}
+
+async function sendVoiceMessage(blob, mimeType) {
+  const ext = mimeType.includes('ogg') ? 'ogg' : 'webm';
+  const fileName = 'voice_' + Date.now() + '.' + ext;
+
+  // Show in chat immediately
+  const localUrl = URL.createObjectURL(blob);
+  const empty = document.querySelector('.state-box');
+  if (empty && document.getElementById('chatMessages').contains(empty)) empty.remove();
+
+  appendMessage({
+    direction: 'outgoing',
+    text: '',
+    timestamp: new Date().toISOString(),
+    status: 'sending',
+    type: 'audio',
+    mediaUrl: localUrl
+  });
+  scrollToBottom();
+
+  try {
+    // Convert blob to base64
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    const res = await fetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_SEND_MEDIA_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: normalizePhone(currentPhone),
+        fileBase64: base64,
+        fileName: fileName,
+        fileType: 'audio',
+        mimeType: mimeType,
+        caption: '',
+        recordId: currentRecordId,
+        module: currentModule,
+        contactName: contactName
+      })
+    });
+
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'failed');
+
+    // Update status
+    const msgs = document.querySelectorAll('.message.outgoing');
+    const last = msgs[msgs.length - 1];
+    if (last) {
+      const t = last.querySelector('.time');
+      const tm = t.textContent.replace('🕐 ', '');
+      t.innerHTML = '<span class="status-icon">✓✓</span> ' + tm;
+    }
+  } catch (err) {
+    console.error('sendVoiceMessage error:', err);
+    const msgs = document.querySelectorAll('.message.outgoing');
+    const last = msgs[msgs.length - 1];
+    if (last) {
+      const t = last.querySelector('.time');
+      t.innerHTML = '❌ שליחה נכשלה';
+    }
+  }
+}
 </script>
 </body>
 </html>
