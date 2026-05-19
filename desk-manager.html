@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zoho Desk — לוח בקרה (מנהל)</title>
+  <script src="https://live.zwidgets.com/js-sdk/1.2/ZohoEmbededAppSDK.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0a6859;
+      --primary-light: #0d8a76;
+      --primary-dark: #064d43;
+      --accent: #22c55e;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-hover: #f1f5f9;
+      --border: #e2e8f0;
+      --text-primary: #1a1a2e;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --age-fresh: #94a3b8;
+      --age-young: #eab308;
+      --age-mid: #f97316;
+      --age-old: #dc2626;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Rubik', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      height: 100vh; width: 100%;
+      display: flex; flex-direction: column;
+      direction: rtl;
+      color: var(--text-primary);
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+
+    /* HEADER */
+    .header {
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 50%, var(--primary-light) 100%);
+      color: white;
+      padding: 12px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .header-title {
+      font-size: 14px; font-weight: 600;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .header-title .icon { font-size: 16px; }
+    .btn-refresh {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.1);
+      color: white;
+      cursor: pointer; font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .btn-refresh:hover { background: rgba(255,255,255,0.2); transform: rotate(180deg); }
+    .btn-refresh.spinning { animation: spin 1s linear infinite; }
+    @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+
+    /* METRIC CARDS */
+    .metric-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding: 12px;
+      flex-shrink: 0;
+    }
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+    }
+    .metric-card:hover {
+      border-color: var(--primary-light);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+    .metric-card.active {
+      background: var(--primary);
+      border-color: var(--primary-dark);
+      color: white;
+    }
+    .metric-card.active .metric-label { color: rgba(255,255,255,0.9); }
+    .metric-card.active .metric-value { color: white; }
+    .metric-card.active::after {
+      content: '×';
+      position: absolute;
+      top: 4px; left: 4px;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.25);
+      color: white;
+      font-size: 14px; font-weight: bold;
+      display: flex; align-items: center; justify-content: center;
+      line-height: 1;
+    }
+    .metric-label {
+      font-size: 11px; font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+      white-space: nowrap;
+    }
+    .metric-value {
+      font-size: 22px; font-weight: 700;
+      color: var(--primary-dark);
+      line-height: 1;
+    }
+    .metric-value.capped::after { content: '+'; font-size: 16px; opacity: 0.8; }
+
+    /* LIST TITLE BAR */
+    .list-bar {
+      padding: 8px 16px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+      font-size: 12px;
+    }
+    .list-title { font-weight: 600; color: var(--text-primary); }
+    .list-count { color: var(--text-secondary); }
+    .btn-back {
+      background: none; border: none;
+      color: var(--primary);
+      cursor: pointer; font-size: 12px;
+      font-weight: 500;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      font-family: inherit;
+    }
+    .btn-back:hover { background: var(--surface-hover); }
+    .btn-back.hidden { display: none; }
+
+    /* TICKET LIST */
+    .ticket-list {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--bg);
+    }
+    .ticket-row {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 12px 10px 16px;
+      cursor: pointer;
+      transition: background 0.15s;
+      border-right: 4px solid var(--age-fresh);
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .ticket-row:hover { background: var(--surface-hover); }
+    .ticket-row.age-young { border-right-color: var(--age-young); }
+    .ticket-row.age-mid { border-right-color: var(--age-mid); }
+    .ticket-row.age-old { border-right-color: var(--age-old); }
+
+    .ticket-row-line1 {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px;
+    }
+    .ticket-number {
+      color: var(--primary);
+      font-weight: 600;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+    .ticket-subject {
+      flex: 1;
+      font-weight: 500;
+      color: var(--text-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 12.5px;
+    }
+    .ticket-row-line2 {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 10.5px;
+      color: var(--text-secondary);
+    }
+    .ticket-contact {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .ticket-status {
+      padding: 1px 8px;
+      border-radius: 8px;
+      background: var(--surface-hover);
+      color: var(--text-secondary);
+      font-size: 9.5px;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+    .ticket-age {
+      color: var(--text-muted);
+      flex-shrink: 0;
+      font-size: 10px;
+    }
+
+    /* EMPTY / LOADING / ERROR */
+    .empty-state, .error-state, .loading-state {
+      padding: 30px 16px;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+    .error-state { color: var(--age-old); }
+    .loading-state .spinner {
+      display: inline-block;
+      width: 20px; height: 20px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    /* LOAD MORE */
+    .load-more-wrap {
+      padding: 12px;
+      text-align: center;
+      background: var(--bg);
+    }
+    .btn-load-more {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--primary);
+      padding: 6px 18px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .btn-load-more:hover {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    .btn-load-more.hidden { display: none; }
+
+    /* FOOTER STATUS */
+    .footer-status {
+      padding: 6px 12px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--text-muted);
+      text-align: center;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-title">
+      <span class="icon">🎫</span>
+      <span>לוח בקרה — Zoho Desk</span>
+    </div>
+    <button class="btn-refresh" id="btnRefresh" onclick="refreshAll(true)" title="רענן">↻</button>
+  </div>
+
+  <div class="metric-cards">
+    <div class="metric-card" id="card-open" onclick="setFilter('open')">
+      <div class="metric-label">קריאות פתוחות</div>
+      <div class="metric-value" id="value-open">—</div>
+    </div>
+    <div class="metric-card" id="card-closedToday" onclick="setFilter('closedToday')">
+      <div class="metric-label">נסגרו היום</div>
+      <div class="metric-value" id="value-closedToday">—</div>
+    </div>
+    <div class="metric-card" id="card-createdToday" onclick="setFilter('createdToday')">
+      <div class="metric-label">נפתחו היום</div>
+      <div class="metric-value" id="value-createdToday">—</div>
+    </div>
+  </div>
+
+  <div class="list-bar">
+    <div>
+      <span class="list-title" id="listTitle">כל הקריאות הפתוחות</span>
+    </div>
+    <button class="btn-back hidden" id="btnBack" onclick="setFilter('open')">חזרה ←</button>
+  </div>
+
+  <div class="ticket-list" id="ticketList">
+    <div class="loading-state"><div class="spinner"></div></div>
+  </div>
+
+  <div class="load-more-wrap">
+    <button class="btn-load-more hidden" id="btnLoadMore" onclick="loadMore()">טען עוד</button>
+  </div>
+
+  <div class="footer-status" id="footerStatus">טוען…</div>
+
+<script>
+const CONFIG = {
+  N8N_BASE_URL: 'https://n8n.srv1254786.hstgr.cloud',
+  WEBHOOK_PATH: '/webhook/desk-dashboard',
+  POLL_INTERVAL: 30000,
+  PAGE_SIZE: 20,
+  VIEW: 'manager'
+};
+
+const FILTER_LABELS = {
+  open: 'כל הקריאות הפתוחות',
+  closedToday: 'קריאות שנסגרו היום',
+  createdToday: 'קריאות שנפתחו היום'
+};
+
+let state = {
+  activeFilter: 'open',
+  tickets: [],
+  page: 0,
+  hasMore: false,
+  loading: false,
+  pollTimer: null,
+  lastUpdate: null,
+  deepLinkBase: 'https://desk.zoho.com/agent/914696802'
+};
+
+// ═══════════════════════════════════════
+// API
+// ═══════════════════════════════════════
+async function callApi(payload) {
+  const res = await fetch(CONFIG.N8N_BASE_URL + CONFIG.WEBHOOK_PATH, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return await res.json();
+}
+
+async function fetchMetrics() {
+  const result = await callApi({ operation: 'metrics', view: CONFIG.VIEW });
+  return result;
+}
+
+async function fetchTickets(filter, from = 0) {
+  const result = await callApi({
+    operation: 'tickets',
+    filter,
+    from,
+    limit: CONFIG.PAGE_SIZE
+  });
+  return result;
+}
+
+// ═══════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════
+function renderMetrics(data) {
+  const setVal = (id, val, capped) => {
+    const el = document.getElementById('value-' + id);
+    if (!el) return;
+    el.textContent = (typeof val === 'number') ? val : '—';
+    el.classList.toggle('capped', !!capped);
+  };
+  setVal('open', data.openCount, data.capped && data.capped.openCount);
+  setVal('closedToday', data.closedToday, data.capped && data.capped.closedToday);
+  setVal('createdToday', data.createdToday, data.capped && data.capped.createdToday);
+}
+
+function renderTickets(tickets, hasMore, append = false) {
+  const list = document.getElementById('ticketList');
+  if (!append) list.innerHTML = '';
+
+  if (!tickets || tickets.length === 0) {
+    if (!append) {
+      list.innerHTML = '<div class="empty-state">אין קריאות להצגה</div>';
+    }
+  } else {
+    const frag = document.createDocumentFragment();
+    tickets.forEach(t => {
+      frag.appendChild(buildTicketRow(t));
+    });
+    list.appendChild(frag);
+  }
+
+  const btnMore = document.getElementById('btnLoadMore');
+  btnMore.classList.toggle('hidden', !hasMore);
+
+  const counter = document.getElementById('listTitle');
+  counter.textContent = FILTER_LABELS[state.activeFilter] + ' (' + (state.tickets.length) + ')';
+}
+
+function buildTicketRow(t) {
+  const row = document.createElement('div');
+  row.className = 'ticket-row ' + ageClass(t.createdTime);
+  row.onclick = () => openTicket(t);
+
+  const subject = (t.subject || '(ללא נושא)').slice(0, 100);
+  const ageStr = formatAgeHe(t.createdTime);
+  const contactStr = t.contactName || '—';
+  const statusStr = t.status || '—';
+
+  row.innerHTML =
+    '<div class="ticket-row-line1">' +
+      '<span class="ticket-number">#' + escapeHtml(t.ticketNumber || '') + '</span>' +
+      '<span class="ticket-subject">' + escapeHtml(subject) + '</span>' +
+    '</div>' +
+    '<div class="ticket-row-line2">' +
+      '<span class="ticket-contact">👤 ' + escapeHtml(contactStr) + '</span>' +
+      '<span class="ticket-status">' + escapeHtml(statusStr) + '</span>' +
+      '<span class="ticket-age">' + escapeHtml(ageStr) + '</span>' +
+    '</div>';
+  return row;
+}
+
+function ageClass(isoString) {
+  if (!isoString) return '';
+  const dt = new Date(isoString);
+  if (isNaN(dt.getTime())) return '';
+  const hours = (Date.now() - dt.getTime()) / 3600000;
+  if (hours < 24) return '';
+  if (hours < 72) return 'age-young';
+  if (hours < 168) return 'age-mid';
+  return 'age-old';
+}
+
+function formatAgeHe(isoString) {
+  if (!isoString) return '';
+  const dt = new Date(isoString);
+  if (isNaN(dt.getTime())) return '';
+  const diffMs = Date.now() - dt.getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 60) return 'לפני פחות משעה';
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    if (hours === 1) return 'לפני שעה';
+    if (hours === 2) return 'לפני שעתיים';
+    return 'לפני ' + hours + ' שעות';
+  }
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'לפני יום';
+  if (days === 2) return 'לפני יומיים';
+  if (days <= 30) return 'לפני ' + days + ' ימים';
+  return dt.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// ═══════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════
+function openTicket(t) {
+  const dept = t.departmentId || '';
+  const url = state.deepLinkBase + '/' + dept + '/tickets/details/' + t.id;
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+async function setFilter(filter) {
+  if (state.activeFilter === filter && state.tickets.length > 0) {
+    // Toggle off (back to default open)
+    if (filter !== 'open') {
+      await setFilter('open');
+      return;
+    }
+    return;
+  }
+  state.activeFilter = filter;
+  state.page = 0;
+  state.tickets = [];
+
+  // Update active card highlight
+  ['open', 'closedToday', 'createdToday'].forEach(f => {
+    const card = document.getElementById('card-' + f);
+    if (card) card.classList.toggle('active', f === filter);
+  });
+
+  // Show/hide back button
+  const btnBack = document.getElementById('btnBack');
+  btnBack.classList.toggle('hidden', filter === 'open');
+
+  // Loading state
+  document.getElementById('ticketList').innerHTML = '<div class="loading-state"><div class="spinner"></div></div>';
+  document.getElementById('btnLoadMore').classList.add('hidden');
+
+  try {
+    state.loading = true;
+    const result = await fetchTickets(filter, 0);
+    state.loading = false;
+    if (!result.success) throw new Error(result.message || result.error || 'שגיאה');
+    state.tickets = result.tickets || [];
+    state.hasMore = result.hasMore;
+    state.deepLinkBase = result.deepLinkBase || state.deepLinkBase;
+    renderTickets(state.tickets, state.hasMore, false);
+  } catch (e) {
+    state.loading = false;
+    document.getElementById('ticketList').innerHTML =
+      '<div class="error-state">שגיאה בטעינה — ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+async function loadMore() {
+  if (state.loading || !state.hasMore) return;
+  state.loading = true;
+  state.page += 1;
+  document.getElementById('btnLoadMore').textContent = 'טוען…';
+  try {
+    const result = await fetchTickets(state.activeFilter, state.page * CONFIG.PAGE_SIZE);
+    if (result.success && Array.isArray(result.tickets)) {
+      state.tickets = state.tickets.concat(result.tickets);
+      state.hasMore = result.hasMore;
+      renderTickets(result.tickets, state.hasMore, true);
+    }
+  } catch (e) {
+    console.error('loadMore error', e);
+  } finally {
+    state.loading = false;
+    document.getElementById('btnLoadMore').textContent = 'טען עוד';
+  }
+}
+
+async function refreshAll(manual = false) {
+  const btn = document.getElementById('btnRefresh');
+  if (manual) btn.classList.add('spinning');
+  try {
+    const [metricsRes, ticketsRes] = await Promise.all([
+      fetchMetrics(),
+      fetchTickets(state.activeFilter, 0)
+    ]);
+    if (metricsRes && metricsRes.success !== false) renderMetrics(metricsRes);
+    if (ticketsRes && ticketsRes.success) {
+      state.tickets = ticketsRes.tickets || [];
+      state.hasMore = ticketsRes.hasMore;
+      state.deepLinkBase = ticketsRes.deepLinkBase || state.deepLinkBase;
+      state.page = 0;
+      renderTickets(state.tickets, state.hasMore, false);
+    }
+    state.lastUpdate = new Date();
+    updateFooter();
+  } catch (e) {
+    console.error('refreshAll error', e);
+    document.getElementById('footerStatus').textContent = 'שגיאת חיבור — מנסה שוב בעוד 30 שניות';
+  } finally {
+    if (manual) setTimeout(() => btn.classList.remove('spinning'), 600);
+  }
+}
+
+function updateFooter() {
+  if (!state.lastUpdate) return;
+  const t = state.lastUpdate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  document.getElementById('footerStatus').textContent = 'עודכן לאחרונה: ' + t;
+}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+function startPolling() {
+  if (state.pollTimer) clearInterval(state.pollTimer);
+  state.pollTimer = setInterval(() => refreshAll(false), CONFIG.POLL_INTERVAL);
+}
+
+async function init() {
+  document.getElementById('card-open').classList.add('active');
+  await refreshAll(false);
+  startPolling();
+}
+
+// Init when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>
