@@ -595,9 +595,12 @@ async function init() {
   try {
     document.getElementById('card-myOpen') || document.querySelector('[onclick*="myOpen"]');
 
-    // Wait for Zoho SDK to be ready (best-effort)
+    // Wait for Zoho SDK to be ready (PageLoad must be registered before init)
     if (typeof ZOHO !== 'undefined' && ZOHO.embeddedApp) {
-      try { ZOHO.embeddedApp.init(); } catch (e) {}
+      try {
+        ZOHO.embeddedApp.on('PageLoad', function() {});
+        await ZOHO.embeddedApp.init();
+      } catch (e) { console.warn('embeddedApp init failed', e); }
     }
 
     const email = await getCurrentUserEmail();
