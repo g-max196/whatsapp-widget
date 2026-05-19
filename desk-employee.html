@@ -480,8 +480,8 @@ function escapeHtml(s) {
 // ACTIONS
 // ═══════════════════════════════════════
 function openTicket(t) {
-  const dept = t.departmentId || '';
-  window.open(state.deepLinkBase + '/' + dept + '/tickets/details/' + t.id, '_blank', 'noopener,noreferrer');
+  const url = t.deepLinkUrl || (state.deepLinkBase + '/' + (t.departmentId || '') + '/tickets/details/' + t.id);
+  window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 async function setFilter(filter) {
