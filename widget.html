@@ -549,7 +549,8 @@
     .attach-menu-item .menu-icon.vid-icon { background: #ede9fe; color: #7c3aed; }
 
     .input-wrapper { flex: 1; position: relative; }
-    .chat-input input {
+    .chat-input input,
+    .chat-input textarea {
       width: 100%;
       padding: 11px 16px;
       border: 1.5px solid #e2e8f0;
@@ -561,16 +562,73 @@
       direction: rtl;
       background: #f8fafc;
       color: var(--text-primary);
-      transition: all 0.25s ease;
+      transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
     }
-    .chat-input input::placeholder {
+    .chat-input textarea {
+      resize: none;
+      overflow-y: auto;
+      min-height: 42px;
+      max-height: 140px;
+      line-height: 1.4;
+      display: block;
+    }
+    .chat-input input::placeholder,
+    .chat-input textarea::placeholder {
       color: var(--text-muted);
       font-weight: 300;
     }
-    .chat-input input:focus {
+    .chat-input input:focus,
+    .chat-input textarea:focus {
       border-color: var(--primary);
       background: white;
       box-shadow: 0 0 0 3px rgba(10,104,89,0.08);
+    }
+
+    /* ── TEMPLATE BAR ── */
+    .template-bar {
+      background: var(--surface);
+      padding: 7px 10px;
+      display: flex; flex-wrap: wrap; gap: 6px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .tpl-select {
+      flex: 1 1 calc(33% - 4px);
+      min-width: 110px;
+      padding: 6px 10px 6px 24px;
+      border-radius: var(--radius-full);
+      border: 1px solid #d1d5db;
+      background-color: var(--surface);
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24'><path fill='%2364748b' d='M7 10l5 5 5-5z'/></svg>");
+      background-repeat: no-repeat;
+      background-position: left 8px center;
+      font-size: 11.5px;
+      font-family: 'Rubik', sans-serif;
+      font-weight: 500;
+      cursor: pointer;
+      color: var(--text-secondary);
+      outline: none;
+      direction: rtl;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      transition: all 0.2s ease;
+    }
+    .tpl-select:hover {
+      background-color: var(--surface-hover);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .tpl-select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(10,104,89,0.12);
+    }
+    .tpl-select:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+    .tpl-select option {
+      font-weight: 400;
+      color: var(--text-primary);
     }
 
     .btn-send {
@@ -797,6 +855,18 @@
     </div>
   </div>
 
+  <div class="template-bar" id="templateBar" style="display:none">
+    <select class="tpl-select" id="tplSales" onchange="onTemplateSelect(this)" title="תבניות מכירות">
+      <option value="">תבנית מכירות</option>
+    </select>
+    <select class="tpl-select" id="tplService" onchange="onTemplateSelect(this)" title="תבניות שירות">
+      <option value="">תבנית שירות</option>
+    </select>
+    <select class="tpl-select" id="tplGeneral" onchange="onTemplateSelect(this)" title="תבניות כלליות">
+      <option value="">תבנית כללית</option>
+    </select>
+  </div>
+
   <div class="chat-input">
     <!-- Attach button -->
     <div style="position:relative">
@@ -820,7 +890,7 @@
     </div>
 
     <div class="input-wrapper" id="inputWrapper">
-      <input type="text" id="messageInput" placeholder="כתוב הודעה..." disabled autocomplete="off">
+      <textarea id="messageInput" placeholder="כתוב הודעה..." disabled autocomplete="off" rows="1"></textarea>
     </div>
     <div class="recording-bar" id="recordingBar">
       <div class="rec-dot"></div>
@@ -844,6 +914,7 @@ const CONFIG = {
   N8N_SEND_PATH: '/webhook/whatsapp-send',
   N8N_SEND_MEDIA_PATH: '/webhook/whatsapp-send-media',
   N8N_HISTORY_PATH: '/webhook/whatsapp-history',
+  N8N_TEMPLATES_PATH: '/webhook/desk-templates',
   PHONE_FIELD: 'Phone',
   POLL_INTERVAL: 10000,
   ZOHO_MODULE: 'WhatsApp_Messages',
@@ -925,6 +996,8 @@ async function loadContactData() {
       document.getElementById('sendBtn').disabled = false;
       document.getElementById('micBtn').disabled = false;
       document.getElementById('quickReplies').style.display = 'flex';
+      document.getElementById('templateBar').style.display = 'flex';
+      loadTemplatesList();
       updateInputButtons();
       await loadChatHistory();
       startPolling();
@@ -993,6 +1066,8 @@ async function sendMessage() {
   if (!text || !currentPhone) return;
   document.getElementById('sendBtn').disabled = true;
   input.value = '';
+  input.style.height = '';
+  updateInputButtons();
   const empty = document.querySelector('.state-box');
   if (empty && document.getElementById('chatMessages').contains(empty)) empty.remove();
   appendMessage({ direction: 'outgoing', text, timestamp: new Date().toISOString(), status: 'sending', type: 'text' });
@@ -1218,6 +1293,82 @@ function quickSend(text) {
 }
 
 // ═══════════════════════════════════════
+// TEMPLATES (Zoho Email Templates → WhatsApp text)
+// Source: WF TQA5Q10oGl5vkfse — POST /webhook/desk-templates
+// ═══════════════════════════════════════
+async function loadTemplatesList() {
+  try {
+    const res = await fetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_TEMPLATES_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operation: 'list' })
+    });
+    const data = await res.json();
+    if (!data || !data.success) return;
+    fillTemplateSelect('tplSales', data.sales || []);
+    fillTemplateSelect('tplService', data.service || []);
+    fillTemplateSelect('tplGeneral', data.general || []);
+  } catch (err) {
+    console.error('loadTemplatesList error:', err);
+  }
+}
+
+function fillTemplateSelect(id, names) {
+  const sel = document.getElementById(id);
+  if (!sel) return;
+  const placeholder = sel.options[0];
+  sel.innerHTML = '';
+  sel.appendChild(placeholder);
+  names.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    sel.appendChild(opt);
+  });
+}
+
+async function onTemplateSelect(selectEl) {
+  const name = selectEl.value;
+  if (!name) return;
+
+  const placeholder = selectEl.options[0];
+  const originalText = placeholder.textContent;
+  selectEl.disabled = true;
+  placeholder.textContent = 'טוען…';
+  selectEl.selectedIndex = 0;
+
+  try {
+    const res = await fetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_TEMPLATES_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        operation: 'fetch',
+        templateName: name,
+        customerName: contactName || ''
+      })
+    });
+    const data = await res.json();
+    if (!data || !data.success || !data.text) {
+      throw new Error((data && data.error) || 'no template text');
+    }
+
+    const input = document.getElementById('messageInput');
+    input.value = data.text;
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+    updateInputButtons();
+    input.focus();
+    try { input.setSelectionRange(data.text.length, data.text.length); } catch(e) {}
+  } catch (err) {
+    console.error('onTemplateSelect error:', err);
+    alert('שגיאה בטעינת התבנית: ' + (err.message || 'לא ידוע'));
+  } finally {
+    selectEl.disabled = false;
+    placeholder.textContent = originalText;
+  }
+}
+
+// ═══════════════════════════════════════
 // POLLING
 // ═══════════════════════════════════════
 function startPolling() {
@@ -1375,10 +1526,17 @@ function formatFileSize(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
-document.getElementById('messageInput').addEventListener('keypress', e => {
-  if (e.key === 'Enter') sendMessage();
+document.getElementById('messageInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    sendMessage();
+  }
 });
-document.getElementById('messageInput').addEventListener('input', updateInputButtons);
+document.getElementById('messageInput').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 140) + 'px';
+  updateInputButtons();
+});
 document.getElementById('uploadCaption').addEventListener('keypress', e => {
   if (e.key === 'Enter') sendMedia();
 });
@@ -1504,7 +1662,7 @@ function stopRecTimer() {
 }
 
 async function sendVoiceMessage(blob, mimeType) {
-  const fileName = 'voice_' + Date.now() + '.opus';
+  const fileName = 'ptt_' + Date.now() + '.ogg';
 
   // Show in chat immediately
   const localUrl = URL.createObjectURL(blob);
