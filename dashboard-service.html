@@ -103,10 +103,18 @@ var refreshTimer = null;
 var unreadCount = 0;
 
 function init() {
-  try { ZOHO.embeddedApp.init(); } catch(e) {}
   document.getElementById('dashDate').textContent = new Date().toLocaleDateString('he-IL');
-  loadMessages();
-  refreshTimer = setInterval(loadMessages, CONFIG.REFRESH_INTERVAL);
+  sdkReady().then(function() {
+    loadMessages();
+    refreshTimer = setInterval(loadMessages, CONFIG.REFRESH_INTERVAL);
+  });
+}
+
+// The CRM answers an app (the n8n-auth.js token) only after embeddedApp.init: wait for it, at most 5 s
+function sdkReady() {
+  var p = null;
+  try { ZOHO.embeddedApp.on('PageLoad', function() {}); p = ZOHO.embeddedApp.init(); } catch(e) {}
+  return Promise.race([Promise.resolve(p).catch(function() {}), new Promise(function(r) { setTimeout(r, 5000); })]);
 }
 
 function loadMessages() {

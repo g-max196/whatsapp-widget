@@ -577,6 +577,16 @@ function startPolling() {
 
 async function init() {
   document.getElementById('card-open').classList.add('active');
+
+  // Wait for Zoho SDK to be ready (PageLoad must be registered before init) — same as desk-employee.html.
+  // n8n-auth.js gets its JWT through the SDK, and the CRM answers an app only after init.
+  if (typeof ZOHO !== 'undefined' && ZOHO.embeddedApp) {
+    try {
+      ZOHO.embeddedApp.on('PageLoad', function() {});
+      await ZOHO.embeddedApp.init();
+    } catch (e) { console.warn('embeddedApp init failed', e); }
+  }
+
   await refreshAll(false);
   startPolling();
 }
