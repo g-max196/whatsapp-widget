@@ -1083,6 +1083,7 @@ async function sendMessage() {
     if (!data.success) throw new Error(data.error || 'failed');
     const msgs = document.querySelectorAll('.message.outgoing');
     const last = msgs[msgs.length - 1];
+    markSent(last, data.messageId);
     if (last) {
       const t = last.querySelector('.time');
       const tm = t.textContent.replace('🕐 ', '');
@@ -1259,6 +1260,7 @@ async function sendMedia() {
     // Update last message status
     const msgs = document.querySelectorAll('.message.outgoing');
     const last = msgs[msgs.length - 1];
+    markSent(last, data.messageId);
     if (last) {
       const t = last.querySelector('.time');
       const tm = t.textContent.replace('🕐 ', '');
@@ -1421,7 +1423,27 @@ function closeLightbox(e) {
 // ═══════════════════════════════════════
 // APPEND MESSAGE (with media support)
 // ═══════════════════════════════════════
+// Dedup (20/10): polling returns the messages this widget already shows — its own sends, saved to Zoho by n8n.
+// Every message is keyed by Green API's idMessage: WF2 returns it as messageId, WF1 / WF7 answer a send with it.
+const shownIds = new Set();
+function markSent(div, messageId) {
+  if (!div || !messageId) return;
+  div.dataset.mid = messageId;
+  delete div.dataset.pending;
+  shownIds.add(messageId);
+}
+
 function appendMessage(msg) {
+  if (msg.messageId) {
+    if (shownIds.has(msg.messageId)) return null;
+    // a poll can return our send before its answer arrived: bind it to the pending bubble with the same text
+    if (msg.direction === 'outgoing') {
+      const pending = Array.from(document.querySelectorAll('.message.outgoing[data-pending="1"]'))
+        .find(d => d.dataset.text === (msg.text || ''));
+      if (pending) { markSent(pending, msg.messageId); return pending; }
+    }
+    shownIds.add(msg.messageId);
+  }
   const el = document.getElementById('chatMessages');
   const div = document.createElement('div');
   div.className = `message ${msg.direction || 'outgoing'}`;
@@ -1474,7 +1496,10 @@ function appendMessage(msg) {
 
   const textHtml = textContent ? `<div class="msg-text">${escapeHtml(textContent)}</div>` : '';
   div.innerHTML = `${mediaHtml}${textHtml}<div class="time">${icon}${time}</div>`;
+  if (msg.messageId) div.dataset.mid = msg.messageId;
+  else if (msg.status === 'sending') { div.dataset.pending = '1'; div.dataset.text = msg.text || ''; }
   el.appendChild(div);
+  return div;
 }
 
 // ═══════════════════════════════════════
@@ -1711,6 +1736,7 @@ async function sendVoiceMessage(blob, mimeType) {
     // Update status
     const msgs = document.querySelectorAll('.message.outgoing');
     const last = msgs[msgs.length - 1];
+    markSent(last, data.messageId);
     if (last) {
       const t = last.querySelector('.time');
       const tm = t.textContent.replace('🕐 ', '');
