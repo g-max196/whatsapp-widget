@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WhatsApp הודעות משווקים</title>
   <script src="https://live.zwidgets.com/js-sdk/1.2/ZohoEmbededAppSDK.min.js"></script>
+  <script src="n8n-auth.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -110,7 +111,7 @@ function init() {
 
 function loadMessages() {
   var list = document.getElementById('msgList');
-  fetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_DASHBOARD_PATH + '?category=' + CONFIG.CATEGORY)
+  n8nFetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_DASHBOARD_PATH + '?category=' + CONFIG.CATEGORY)
     .then(function(res) { return res.json(); })
     .then(function(data) {
       unreadCount = data.count || 0;
@@ -187,7 +188,7 @@ function markAsRead(recordId, btnEl) {
     }
   }, 600);
 
-  fetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_MARK_READ_PATH, {
+  n8nFetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_MARK_READ_PATH, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ recordId: recordId })

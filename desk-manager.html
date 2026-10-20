@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Zoho Desk — לוח בקרה (מנהל)</title>
   <script src="https://live.zwidgets.com/js-sdk/1.2/ZohoEmbededAppSDK.min.js"></script>
+  <script src="n8n-auth.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -338,7 +339,7 @@ let state = {
 // API
 // ═══════════════════════════════════════
 async function callApi(payload) {
-  const res = await fetch(CONFIG.N8N_BASE_URL + CONFIG.WEBHOOK_PATH, {
+  const res = await n8nFetch(CONFIG.N8N_BASE_URL + CONFIG.WEBHOOK_PATH, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)

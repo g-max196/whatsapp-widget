@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WhatsApp Chat</title>
   <script src="https://live.zwidgets.com/js-sdk/1.2/ZohoEmbededAppSDK.min.js"></script>
+  <script src="n8n-auth.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/opus-media-recorder@latest/OpusMediaRecorder.umd.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/opus-media-recorder@latest/encoderWorker.umd.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -1016,7 +1017,7 @@ async function loadContactData() {
 async function loadChatHistory() {
   const el = document.getElementById('chatMessages');
   try {
-    const res = await fetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_HISTORY_PATH, {
+    const res = await n8nFetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_HISTORY_PATH, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone: normalizePhone(currentPhone), recordId: currentRecordId, module: currentModule })
@@ -1073,7 +1074,7 @@ async function sendMessage() {
   appendMessage({ direction: 'outgoing', text, timestamp: new Date().toISOString(), status: 'sending', type: 'text' });
   scrollToBottom();
   try {
-    const res = await fetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_SEND_PATH, {
+    const res = await n8nFetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_SEND_PATH, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone: normalizePhone(currentPhone), message: text, recordId: currentRecordId, module: currentModule, contactName })
@@ -1232,7 +1233,7 @@ async function sendMedia() {
   try {
     progressFill.style.width = '50%';
 
-    const res = await fetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_SEND_MEDIA_PATH, {
+    const res = await n8nFetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_SEND_MEDIA_PATH, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1298,7 +1299,7 @@ function quickSend(text) {
 // ═══════════════════════════════════════
 async function loadTemplatesList() {
   try {
-    const res = await fetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_TEMPLATES_PATH, {
+    const res = await n8nFetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_TEMPLATES_PATH, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ operation: 'list' })
@@ -1338,7 +1339,7 @@ async function onTemplateSelect(selectEl) {
   selectEl.selectedIndex = 0;
 
   try {
-    const res = await fetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_TEMPLATES_PATH, {
+    const res = await n8nFetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_TEMPLATES_PATH, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1375,7 +1376,7 @@ function startPolling() {
   if (pollingTimer) clearInterval(pollingTimer);
   pollingTimer = setInterval(async () => {
     try {
-      const res = await fetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_HISTORY_PATH, {
+      const res = await n8nFetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_HISTORY_PATH, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: normalizePhone(currentPhone), recordId: currentRecordId, module: currentModule, since: lastMessageTimestamp })
@@ -1688,7 +1689,7 @@ async function sendVoiceMessage(blob, mimeType) {
       reader.readAsDataURL(blob);
     });
 
-    const res = await fetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_SEND_MEDIA_PATH, {
+    const res = await n8nFetch(CONFIG.N8N_BASE_URL + CONFIG.N8N_SEND_MEDIA_PATH, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
