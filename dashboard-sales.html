@@ -6,7 +6,7 @@
   <title>WhatsApp הודעות מכירות</title>
   <script src="https://live.zwidgets.com/js-sdk/1.2/ZohoEmbededAppSDK.min.js"></script>
   <script src="n8n-auth.js"></script>
-  <script src="rep-availability.js"></script>
+  <script src="lead-bank.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -85,7 +85,7 @@
     <div class="icon">💰</div>
     <div class="dash-title">הודעות מכירות</div>
     <div class="dash-count" id="dashCount" style="display:none">0</div>
-    <span id="repAvailability" hidden></span>
+    <span id="leadBank" hidden></span>
     <div class="dash-date" id="dashDate"></div>
     <button class="btn-refresh" onclick="loadMessages()" title="רענן">🔄</button>
   </div>
@@ -106,7 +106,9 @@ var unreadCount = 0;
 
 function init() {
   document.getElementById('dashDate').textContent = new Date().toLocaleDateString('he-IL');
-  sdkReady().then(function() {
+  // lead-bank.js waits on the same SDK init before its first n8n call
+  window.dashReady = sdkReady();
+  window.dashReady.then(function() {
     loadMessages();
     refreshTimer = setInterval(loadMessages, CONFIG.REFRESH_INTERVAL);
   });
