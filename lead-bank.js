@@ -32,16 +32,19 @@
 
   function create(deps) {
     var fetchFn = deps.fetchFn, url = deps.url || URL, render = deps.render, openRecord = deps.openRecord || function () {};
+    var wait = deps.wait || setTimeout, timeoutMs = deps.timeoutMs || 20000;
     var s = { visible: false, open: false, loading: false, error: null, me: null, counts: null, items: [], taking: null, message: null };
     var stopped = false, seq = 0;
 
     function show(patch) { Object.assign(s, patch); render(s); }
 
+    // a request that never ends must not leave the buttons disabled: after TIMEOUT_MS it counts as "no connection"
     function post(body) {
-      return fetchFn(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      var call = fetchFn(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
         .then(function (res) {
           return res.json().then(function (b) { return { status: res.status, body: b }; }, function () { return { status: res.status, body: null }; });
         }, function () { return { status: 0, body: null }; });
+      return Promise.race([call, new Promise(function (r) { wait(function () { r({ status: 0, body: null }); }, timeoutMs); })]);
     }
 
     function refresh() {
@@ -79,6 +82,7 @@
           openRecord(item.module, item.id);
           return refresh();
         }
+        if (r.status === 403) { stopped = true; seq++; show({ taking: null, visible: false, open: false }); return; }
         var text = r.status === 0 ? NOTES.network : r.status === 401 ? NOTES.auth : (b.error || NOTES.server);
         show({ taking: null, message: { ok: false, text: text } });
         if (r.status === 409) return refresh(); // taken by someone else / caps changed: show the current bank
