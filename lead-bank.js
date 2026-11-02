@@ -1,10 +1,12 @@
 // The "בנק לידים" panel on the CRM sales home dashboard (decision 2026-10-29-lead-bank; replaces the "זמין" button).
 // A rep sees the bank (CEO-owned open leads and sales deals, best priority first) and takes a record for themself.
+// Any other signed-in CRM user reads the same list without "קח" (decision 2026-11-02-bank-panel-all-users).
 // Contract (WF19 bank webhook, workflows-src/wf19-lead-bank):
 //   POST /webhook/lead-bank, Authorization: Bearer <JWT> (n8nFetch from n8n-auth.js)
 //   {} ⇒ 200 {ok, me:{name, open, snoozed, cap_open, cap_snoozed, can_take_leads, reason}, counts:{leads, deals, snoozed}, items:[…]}
+//        a viewer gets me:{viewer:true, can_take_leads:false, reason:null}
 //   {"take": {"module": "Leads"|"Deals", "id": "…"}} ⇒ 200 {ok, module, id[, already]} · 409 {ok:false, error} (caps, taken, snoozed)
-//   401 no user in the token · 403 not an active rep (the panel hides for good) · 503 Zoho failed
+//   401 no user in the token · 403 a take by a viewer (the panel hides for good) · 503 Zoho failed
 // The server decides every take on a fresh read; the caps shown here are only information.
 // No polling: the list is read on load, when the panel opens and after each take (each read costs ~6 Zoho calls).
 // Load after n8n-auth.js; the page holds <span id="leadBank" hidden></span> in its header.
@@ -21,11 +23,11 @@
   // the header button for a state (pure)
   function view(s) {
     if (!s || !s.visible) return { hidden: true };
-    var me = s.me;
+    var me = s.me, viewer = !!(me && me.viewer), c = s.counts || {};
     return {
       hidden: false,
-      text: me ? 'בנק לידים · ' + me.open + '/' + me.cap_open : 'בנק לידים',
-      blocked: !!(me && !me.can_take_leads),
+      text: viewer ? 'בנק לידים · ' + ((c.leads || 0) + (c.deals || 0)) : me ? 'בנק לידים · ' + me.open + '/' + me.cap_open : 'בנק לידים',
+      blocked: !!(me && !viewer && !me.can_take_leads),
       note: s.error ? (NOTES[s.error] || NOTES.network) : '',
     };
   }
@@ -132,7 +134,10 @@
         panel.hidden = !st.open;
         if (!st.open) return;
         var me = st.me, h = '';
-        if (me) {
+        var viewer = !!(me && me.viewer), cnt = st.counts || {};
+        if (viewer) {
+          h += '<div class="bank-me">צפייה בלבד: <b>' + (cnt.leads || 0) + '</b> לידים ו־<b>' + (cnt.deals || 0) + '</b> עסקאות בבנק. רק נציגה יכולה לקחת רשומה.</div>';
+        } else if (me) {
           h += '<div class="bank-me"><bdi>' + esc(me.name || '') + '</bdi>: <b>' + me.open + '</b> לידים פתוחים מתוך ' + me.cap_open +
             ' · <b>' + me.snoozed + '</b> בנודניק מתוך ' + me.cap_snoozed + '</div>';
           if (!me.can_take_leads) h += '<div class="bank-reason">' + esc(me.reason) + '. אפשר עדיין לקחת עסקאות.</div>';
@@ -142,10 +147,10 @@
         else if (!st.items.length) h += '<div class="bank-empty">הבנק ריק</div>';
         st.items.forEach(function (it, i) {
           var blocked = it.module === 'Leads' && me && !me.can_take_leads;
+          var takeBtn = viewer ? '' : '<button type="button" class="bank-take" data-take="' + i + '"' + (blocked || st.taking ? ' disabled' : '') + '>' + (st.taking === it.id ? '…' : 'קח') + '</button>';
           var meta = [it.category, it.source, it.status, it.created ? 'נכנס ' + date(it.created) : ''].filter(Boolean).join(' · ');
           h += '<div class="bank-item"><div class="bank-body"><div class="bank-name">' + (it.module === 'Deals' ? '<span class="bank-tag">עסקה</span>' : '') +
-            '<a href="javascript:void(0)" data-open="' + i + '">' + esc(it.name) + '</a></div><div class="bank-meta">' + esc(meta) + ' · עדיפות ' + esc(it.priority) + '</div></div>' +
-            '<button type="button" class="bank-take" data-take="' + i + '"' + (blocked || st.taking ? ' disabled' : '') + '>' + (st.taking === it.id ? '…' : 'קח') + '</button></div>';
+            '<a href="javascript:void(0)" data-open="' + i + '">' + esc(it.name) + '</a></div><div class="bank-meta">' + esc(meta) + ' · עדיפות ' + esc(it.priority) + '</div></div>' + takeBtn + '</div>';
         });
         if (st.counts && st.counts.snoozed) h += '<div class="bank-empty">' + st.counts.snoozed + ' לידים בבנק נמצאים בנודניק ולא מוצגים</div>';
         panel.innerHTML = h;
